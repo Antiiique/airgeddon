@@ -145,6 +145,8 @@ osversionfile_dir="/etc/"
 plugins_dir="plugins/"
 ag_orchestrator_file="ag.orchestrator.txt"
 system_tmpdir="/tmp/"
+# Répertoire partagé avec Fluxion — les handshakes airgeddon seront sauvegardés ici
+fluxion_handshakes_dir="/home/kali/fluxion/attacks/Handshake Snooper/handshakes"
 minimum_bash_version_required="4.2"
 resume_message=224
 abort_question=12
@@ -427,6 +429,9 @@ tmux_main_window="airgeddon-Main"
 no_hardcore_exit=0
 
 #Check coherence between script and language_strings file
+# [FR] Vérifie que le fichier language_strings.sh est présent et correspond à la version attendue.
+# [FR] Si absent ou version incorrecte → tente de le télécharger automatiquement depuis GitHub.
+# [FR] Si le téléchargement échoue → quitte le script avec un message d'erreur explicite.
 function check_language_strings() {
 
 	debug_print
@@ -489,6 +494,8 @@ function check_language_strings() {
 }
 
 #Download the language strings file
+# [FR] Télécharge le fichier language_strings.sh depuis le dépôt GitHub d'airgeddon.
+# [FR] Supporte les proxies HTTP. Retourne 0 si succès, 1 si échec.
 function download_language_strings_file() {
 
 	debug_print
@@ -521,6 +528,8 @@ function download_language_strings_file() {
 }
 
 #Set messages for language_strings handling
+# [FR] Initialise les tableaux associatifs de messages multilingues pour la gestion du fichier de traductions.
+# [FR] Ces messages s'affichent AVANT que le fichier de traductions soit chargé (donc pas de language_strings()).
 function language_strings_handling_messages() {
 
 	declare -gA language_strings_no_file
@@ -645,6 +654,10 @@ function language_strings_handling_messages() {
 }
 
 #Generic toggle option function
+# [FR] Bascule (active/désactive) une option de configuration dans le fichier rc d'airgeddon.
+# [FR] Paramètre 1 : nom de la variable option (ex: AIRGEDDON_5GHZ_ENABLED)
+# [FR] Paramètre 2 (optionnel) : "required_reboot" si le changement nécessite un redémarrage.
+# [FR] Certaines options ont des effets secondaires (recalcul bandes, réinitialisation couleurs).
 function option_toggle() {
 
 	debug_print
@@ -705,6 +718,8 @@ function option_toggle() {
 }
 
 #Get current permanent language
+# [FR] Lit la langue actuellement définie en dur dans le script airgeddon.sh lui-même.
+# [FR] Stocke le résultat dans 'current_permanent_language' (ex: "FRENCH", "ENGLISH").
 function get_current_permanent_language() {
 
 	debug_print
@@ -714,6 +729,9 @@ function get_current_permanent_language() {
 }
 
 #Set language as permanent
+# [FR] Modifie en dur la variable 'language' dans le fichier airgeddon.sh pour rendre la langue persistante.
+# [FR] Utilise sed pour remplacer la ligne 'language="..."' directement dans le script.
+# [FR] Retourne 0 si succès, 1 si l'écriture a échoué (ex: fichier en lecture seule).
 function set_permanent_language() {
 
 	debug_print
@@ -726,6 +744,9 @@ function set_permanent_language() {
 }
 
 #Print the current line of where this was called and the function's name. Applies to some (which are useful) functions
+# [FR] Affiche le numéro de ligne et le nom de la fonction appelante pour le débogage.
+# [FR] Activé uniquement si AIRGEDDON_DEBUG_MODE=true. Certaines fonctions de bas niveau sont exclues
+# [FR] de la liste (echo_*, language_strings, etc.) pour éviter un spam de messages debug.
 function debug_print() {
 
 	if "${AIRGEDDON_DEBUG_MODE:-true}"; then
@@ -785,6 +806,9 @@ function debug_print() {
 }
 
 #Set the message to show again after an interrupt ([Ctrl+C] or [Ctrl+Z]) without exiting
+# [FR] Mémorise le dernier message affiché pour pouvoir le réafficher après un Ctrl+C ou Ctrl+Z.
+# [FR] Conserve les 2 derniers messages (message1 = plus récent, message2 = précédent).
+# [FR] Évite de dupliquer le même message si c'est le même que 'resume_message'.
 function interrupt_checkpoint() {
 
 	debug_print
@@ -805,6 +829,9 @@ function interrupt_checkpoint() {
 }
 
 #Add the text on a menu when you miss an optional tool
+# [FR] Affiche une option de menu en rouge et grisée si un outil optionnel requis est absent.
+# [FR] Ajoute l'option dans 'forbidden_options' pour empêcher sa sélection.
+# [FR] En mode DEVELOPMENT_MODE, toutes les options sont accessibles même sans les outils.
 function special_text_missed_optional_tool() {
 
 	debug_print
@@ -835,6 +862,9 @@ function special_text_missed_optional_tool() {
 }
 
 #Generate the chars in front of and behind a text for titles and separators
+# [FR] Génère une ligne de séparation dynamique centrée sur la largeur du terminal.
+# [FR] Types: "title" (encadre le texte), "separator" (ligne de tirets), etc.
+# [FR] S'adapte à la taille de la fenêtre pour un affichage propre quelle que soit la résolution.
 function generate_dynamic_line() {
 
 	debug_print
@@ -882,19 +912,24 @@ function generate_dynamic_line() {
 }
 
 #Wrapper to check managed mode on an interface
+# [FR] Vérifie si une interface peut passer en mode managed.
+# [FR] Retourne 1 si l'interface est déjà en managed ou n'est pas Wi-Fi.
 function check_to_set_managed() {
 
 	debug_print
 
+	# [FR] Récupère le mode actuel de l'interface via check_interface_mode
 	check_interface_mode "${1}"
 	case "${ifacemode}" in
 		"Managed")
+			# [FR] L'interface est déjà en mode managed - inutile de recommencer
 			echo
 			language_strings "${language}" 0 "red"
 			language_strings "${language}" 115 "read"
 			return 1
 		;;
 		"(Non wifi adapter)")
+			# [FR] Ce n'est pas un adaptateur Wi-Fi
 			echo
 			language_strings "${language}" 1 "red"
 			language_strings "${language}" 115 "read"
@@ -905,19 +940,24 @@ function check_to_set_managed() {
 }
 
 #Wrapper to check monitor mode on an interface
+# [FR] Vérifie si une interface peut passer en mode monitor.
+# [FR] Retourne 1 si l'interface est déjà en monitor ou n'est pas Wi-Fi.
 function check_to_set_monitor() {
 
 	debug_print
 
+	# [FR] Récupère le mode actuel de l'interface
 	check_interface_mode "${1}"
 	case "${ifacemode}" in
 		"Monitor")
+			# [FR] L'interface est déjà en mode monitor
 			echo
 			language_strings "${language}" 10 "red"
 			language_strings "${language}" 115 "read"
 			return 1
 		;;
 		"(Non wifi adapter)")
+			# [FR] Ce n'est pas un adaptateur Wi-Fi
 			echo
 			language_strings "${language}" 13 "red"
 			language_strings "${language}" 115 "read"
@@ -928,10 +968,14 @@ function check_to_set_monitor() {
 }
 
 #Check for monitor mode on an interface
+# [FR] Vérifie si une interface est actuellement en mode monitor.
+# [FR] Utilise 'iw <iface> info' pour lire le type courant.
+# [FR] Retourne 0 si monitor, 1 sinon.
 function check_monitor_enabled() {
 
 	debug_print
 
+	# [FR] Lit le type d'interface avec iw (ex: managed, monitor, AP...)
 	mode=$(iw "${1}" info 2> /dev/null | grep type | awk '{print $2}')
 
 	current_iface_on_messages="${1}"
@@ -943,15 +987,22 @@ function check_monitor_enabled() {
 }
 
 #Check if an interface is a Wi-Fi adapter or not
+# [FR] Vérifie si une interface est un adaptateur Wi-Fi en utilisant iw.
+# [FR] Retourne 0 si Wi-Fi valide, non-zéro sinon.
 function check_interface_wifi() {
 
 	debug_print
 
+	# [FR] iw retourne une erreur si l'interface n'est pas Wi-Fi
 	iw "${1}" info > /dev/null 2>&1
 	return $?
 }
 
 #Create a list of interfaces associated to their MAC addresses
+# [FR] Construit deux tableaux associatifs globaux :
+# [FR]   ifaces_and_macs[nom_iface] = adresse_mac
+# [FR]   ifaces_and_macs_switched[adresse_mac] = nom_iface
+# [FR] Exclut l'interface loopback (lo) et l'interface principale déjà sélectionnée.
 function renew_ifaces_and_macs_list() {
 
 	debug_print
@@ -974,6 +1025,10 @@ function renew_ifaces_and_macs_list() {
 }
 
 #Check the interface coherence between interface names and MAC addresses
+# [FR] Vérifie que l'interface sélectionnée existe toujours avec le même nom.
+# [FR] Si airmon-ng a renommé l'interface (ex: wlan0 → wlan0mon), retrouve la nouvelle
+# [FR] interface grâce à l'adresse MAC et met à jour la variable 'interface' automatiquement.
+# [FR] Retourne 1 si l'interface a changé de nom (interface_auto_change=1).
 function check_interface_coherence() {
 
 	debug_print
@@ -1010,19 +1065,27 @@ function check_interface_coherence() {
 }
 
 #Check if an adapter is compatible to airmon
+# [FR] Vérifie si un adaptateur peut utiliser airmon-ng pour changer de mode.
+# [FR] Les chipsets RTL (RTL8812AU/RTL8811AU) retournent "interface combinations are not supported",
+# [FR] ce qui déclenche interface_airmon_compatible=0 → airgeddon utilisera iw directement.
+# [FR] Paramètre : "interface" pour l'interface principale, autre valeur pour l'interface secondaire.
 function check_airmon_compatibility() {
 
 	debug_print
 
 	if [ "${1}" = "interface" ]; then
+		# [FR] Lecture du chipset de l'interface principale (mode lecture seule)
 		set_chipset "${interface}" "read_only"
 
+		# [FR] Si le noyau ne supporte pas les combinaisons d'interfaces (cas RTL8812AU/RTL8811AU),
+		# [FR] airmon-ng ne peut pas gérer le changement de mode → on utilisera iw directement
 		if iw phy "${phy_interface}" info 2> /dev/null | grep -iq 'interface combinations are not supported'; then
 			interface_airmon_compatible=0
 		else
 			interface_airmon_compatible=1
 		fi
 	else
+		# [FR] Pour l'interface secondaire, on teste avec une commande bitrate
 		set_chipset "${secondary_wifi_interface}" "read_only"
 
 		if ! iw dev "${secondary_wifi_interface}" set bitrates legacy-2.4 1 > /dev/null 2>&1; then
@@ -1034,6 +1097,8 @@ function check_airmon_compatibility() {
 }
 
 #Add contributing footer to a file
+# [FR] Ajoute un pied de page d'informations de contribution en bas d'un fichier texte généré.
+# [FR] Utilisé pour les fichiers de logs et de résultats d'attaques.
 function add_contributing_footer_to_file() {
 
 	debug_print
@@ -1047,6 +1112,10 @@ function add_contributing_footer_to_file() {
 }
 
 #Prepare the vars to be used on wps pin database attacks
+# [FR] Extrait et nettoie les portions de BSSID nécessaires aux algorithmes WPS :
+# [FR]   - Les 6 premiers octets (OUI du fabricant) et les 6 derniers octets.
+# [FR]   - Les 4 derniers octets pour les algorithmes EasyBox/Arcadyan.
+# [FR] Supprime les ":" pour obtenir des chaînes hexadécimales brutes exploitables.
 function set_wps_mac_parameters() {
 
 	debug_print
@@ -1060,6 +1129,8 @@ function set_wps_mac_parameters() {
 }
 
 #Check if wash has JSON option
+# [FR] Vérifie si l'outil 'wash' supporte l'option -j (sortie JSON) pour le scan WPS.
+# [FR] L'option JSON permet un parsing plus fiable des données WPS détectées.
 function check_json_option_on_wash() {
 
 	debug_print
@@ -1069,6 +1140,8 @@ function check_json_option_on_wash() {
 }
 
 #Check if wash has dual scan option
+# [FR] Vérifie si 'wash' supporte le dual scan (scan simultané 2.4GHz + 5GHz).
+# [FR] Disponible uniquement dans les versions récentes de wash.
 function check_dual_scan_on_wash() {
 
 	debug_print
@@ -1078,6 +1151,10 @@ function check_dual_scan_on_wash() {
 }
 
 #Perform wash scan using -j (json) option to gather needed data
+# [FR] Lance un scan WPS avec wash en mode JSON (-j) pour obtenir les données WPS structurées.
+# [FR] Utilise un FIFO pour lire le flux en temps réel et l'écrire dans un fichier temporaire.
+# [FR] S'arrête dès que le BSSID cible est trouvé. Timeout de 240 secondes max.
+# [FR] Adapte la bande (5GHz avec -5) si la cible est sur un canal > 14.
 function wash_json_scan() {
 
 	debug_print
@@ -1123,6 +1200,9 @@ function wash_json_scan() {
 }
 
 #Calculate pin based on Zhao Chunsheng algorithm (ComputePIN), step 1
+# [FR] Implémente l'étape 1 de l'algorithme ComputePIN de Zhao Chunsheng.
+# [FR] Convertit les 4 derniers octets du BSSID en décimal, puis applique modulo 10000000.
+# [FR] Utilisé pour les routeurs D-Link, TP-Link, Netgear avec PIN par défaut prévisible.
 function calculate_computepin_algorithm_step1() {
 
 	debug_print
@@ -1132,6 +1212,8 @@ function calculate_computepin_algorithm_step1() {
 }
 
 #Calculate pin based on Zhao Chunsheng algorithm (ComputePIN), step 2
+# [FR] Étape 2 de ComputePIN : ajoute le chiffre de contrôle WPS (checksum) au PIN calculé.
+# [FR] Le PIN final est formaté sur 8 chiffres avec zéros en tête.
 function calculate_computepin_algorithm_step2() {
 
 	debug_print
@@ -1140,6 +1222,9 @@ function calculate_computepin_algorithm_step2() {
 }
 
 #Calculate pin based on Stefan Viehböck algorithm (EasyBox)
+# [FR] Implémente l'algorithme EasyBox de Stefan Viehböck pour les routeurs Arcor/Vodafone EasyBox.
+# [FR] Utilise les 4 derniers octets du BSSID pour dériver le PIN WPS via des XOR et modulos.
+# [FR] shellcheck SC2207 désactivé car l'expansion de tableau est intentionnelle ici.
 #shellcheck disable=SC2207
 function calculate_easybox_algorithm() {
 
@@ -1165,6 +1250,9 @@ function calculate_easybox_algorithm() {
 }
 
 #Calculate pin based on Arcadyan algorithm
+# [FR] Implémente l'algorithme Arcadyan pour les routeurs KPN/Telekom/Swisscom basés sur Arcadyan.
+# [FR] Utilise à la fois le numéro de série WPS (obtenu par wash -j) et le BSSID.
+# [FR] wan = BSSID - 2 (l'interface WAN a une adresse MAC décalée de 2 par rapport au WiFi).
 function calculate_arcadyan_algorithm() {
 
 	debug_print
@@ -1192,6 +1280,9 @@ function calculate_arcadyan_algorithm() {
 }
 
 #Calculate the last digit on pin following the checksum rule
+# [FR] Calcule le 8ème chiffre du PIN WPS selon la règle de checksum officielle du standard WPS.
+# [FR] Le checksum garantit que le PIN est valide mathématiquement (validation côté routeur).
+# [FR] Algorithme : somme pondérée des 7 premiers chiffres, puis 10 - (somme % 10).
 function pin_checksum_rule() {
 
 	debug_print
@@ -1213,6 +1304,8 @@ function pin_checksum_rule() {
 }
 
 #Manage the calls to check common wps pin algorithms
+# [FR] Orchestre l'appel aux différents algorithmes WPS (ComputePIN, EasyBox, Arcadyan) pour un BSSID.
+# [FR] Vérifie d'abord la base de données, puis essaie chaque algorithme selon le fabricant (OUI).
 function check_and_set_common_algorithms() {
 
 	debug_print
@@ -1304,6 +1397,10 @@ function check_and_set_common_algorithms() {
 }
 
 #Integrate calculated pins from algorithms into pins array
+# [FR] Fusionne les PINs calculés par les algorithmes (ComputePIN, EasyBox, Arcadyan)
+# [FR] dans le tableau pins_found, en évitant les doublons.
+# [FR] Insère les PINs calculés EN PREMIER (priorité sur la base de données).
+# [FR] Retourne 0 si au moins un nouveau PIN a été ajouté, 1 sinon.
 function integrate_algorithms_pins() {
 
 	debug_print
@@ -1333,6 +1430,10 @@ function integrate_algorithms_pins() {
 }
 
 #Search for target wps bssid MAC address in pin database and set the vars to be used
+# [FR] Recherche le BSSID cible (6 premiers octets du MAC) dans la base de données known_pins.db.
+# [FR] La base contient des PINs WPS par défaut pour chaque OUI (fabricant).
+# [FR] Si trouvé, peuple pins_found[] et counter_pins_found.
+# [FR] shellcheck SC2128 désactivé (expansion de tableau intentionnelle).
 #shellcheck disable=SC2128
 function search_in_pin_database() {
 
@@ -1353,6 +1454,9 @@ function search_in_pin_database() {
 }
 
 #Handler for multiple busy port checkings
+# [FR] Vérifie que tous les ports TCP et UDP requis par une attaque sont disponibles.
+# [FR] Si un port est occupé, identifie le processus qui l'utilise et affiche un message d'erreur.
+# [FR] Retourne 1 si un port est occupé, 0 si tous les ports sont libres.
 function check_busy_ports() {
 
 	debug_print
@@ -1392,6 +1496,10 @@ function check_busy_ports() {
 }
 
 #Validate if a given tcp/udp port is busy on the given interface
+# [FR] Vérifie si un port TCP ou UDP est déjà utilisé sur l'interface donnée.
+# [FR] Lit directement /proc/net/{tcp,udp} pour une détection rapide sans dépendances externes.
+# [FR] Pour TCP: état 0A = LISTEN. Pour UDP: état 07 = UNCONN (sauf port DHCP 67/0x43).
+# [FR] shellcheck SC2207 désactivé (expansion de tableau intentionnelle).
 #shellcheck disable=SC2207
 function check_tcp_udp_port() {
 
@@ -1432,6 +1540,9 @@ function check_tcp_udp_port() {
 }
 
 #Find process name from a given port
+# [FR] Identifie le processus qui utilise un port TCP/UDP donné via la commande 'ss'.
+# [FR] Stocke le nom dans 'blocking_process_name' pour l'afficher dans le message d'erreur.
+# [FR] Si 'ss' n'est pas disponible, retourne le nom générique 'unknown'.
 function find_process_name_by_port() {
 
 	debug_print
@@ -1457,6 +1568,9 @@ function find_process_name_by_port() {
 }
 
 #Convert an IP address from decimal to hexdecimal returning its value
+# [FR] Convertit une adresse IP en notation décimale pointée (ex: 192.168.1.1)
+# [FR] en notation hexadécimale inversée (little-endian) utilisée dans /proc/net/tcp.
+# [FR] Exemple: 192.168.1.1 → 0101A8C0
 ip_dec_to_hex() {
 
 	debug_print
@@ -1473,6 +1587,10 @@ ip_dec_to_hex() {
 }
 
 #Validate if a wireless adapter is supporting VIF (Virtual Interface Functionality)
+# [FR] Vérifie si l'adaptateur Wi-Fi supporte les interfaces virtuelles (mode AP/VLAN).
+# [FR] Cette capacité est nécessaire pour l'Evil Twin (AP + monitor simultanés).
+# [FR] RTL8812AU (Wlan_Ap): SUPPORTE les VIF. RTL8811AU (Wlan_Jam): peut varier selon driver.
+# [FR] Retourne 0 si VIF supporté, 1 sinon.
 function check_vif_support() {
 
 	debug_print
@@ -1485,6 +1603,9 @@ function check_vif_support() {
 }
 
 #Returns warning messages if long Wi-Fi names detected
+# [FR] Détecte si l'interface Wi-Fi a un nom long généré par udev (ex: wlxF4F26D).
+# [FR] Ces noms longs peuvent causer des problèmes avec certains outils (airmon-ng, hostapd).
+# [FR] Affiche un avertissement et demande de confirmer avant de continuer.
 function check_interface_wifi_longname() {
 
 	debug_print
@@ -1506,6 +1627,9 @@ function check_interface_wifi_longname() {
 }
 
 #Find the physical interface for an adapter
+# [FR] Retourne l'interface physique (phy0, phy1...) correspondant à une interface logique.
+# [FR] Utilise le lien symbolique /sys/class/net/<iface>/phy80211 → phy#.
+# [FR] Ex: Wlan_Ap (RTL8812AU) → phy1 | Wlan_Jam (RTL8811AU) → phy0
 function physical_interface_finder() {
 
 	debug_print
@@ -1515,7 +1639,11 @@ function physical_interface_finder() {
 	echo "${phy_iface}"
 }
 
-#Check the wireless stamdards supported by a given physical adapter
+#Check the wireless standards supported by a given physical adapter
+# [FR] Détecte les standards Wi-Fi supportés par l'adaptateur (n/ac/ax/be) via 'iw phy info'.
+# [FR] RTL8812AU (Wlan_Ap): WiFi5 (802.11ac) → VHT présent, wifi_standard_short = "(WiFi5)"
+# [FR] RTL8811AU (Wlan_Jam): WiFi5 aussi → dual-band 2.4/5GHz supporté
+# [FR] Stocke le résultat dans wifi_standard_short pour l'affichage dans les menus.
 function check_supported_standards() {
 
 	debug_print
@@ -1562,6 +1690,9 @@ function check_supported_standards() {
 }
 
 #Build channel to frequency mappings for different bands
+# [FR] Construit la table de correspondance canal ↔ fréquence pour 2.4GHz, 5GHz et 6GHz.
+# [FR] 2.4GHz: canaux 1-14 (2412-2484 MHz) | 5GHz: canaux 36-165 (5180-5825 MHz)
+# [FR] 6GHz: canaux 1-233 par pas de 4 (5955-7115 MHz) pour WiFi 6E/7
 function channel_mappings() {
 
 	debug_print
@@ -1591,6 +1722,9 @@ function channel_mappings() {
 }
 
 #Check the bands supported by a given physical adapter
+# [FR] Peuple le tableau interfaces_band_info[] avec les bandes supportées par l'adaptateur.
+# [FR] Codes de retour des sous-fonctions: 0=supporté et activé, 1=non supporté, 2=supporté mais désactivé.
+# [FR] RTL8812AU (Wlan_Ap) et RTL8811AU (Wlan_Jam): supportent 2.4GHz ET 5GHz (WiFi5/ac).
 function check_interface_supported_bands() {
 
 	debug_print
@@ -1628,6 +1762,9 @@ function check_interface_supported_bands() {
 }
 
 #Check 5Ghz band info from a given physical interface
+# [FR] Vérifie si l'adaptateur supporte la bande 5GHz en cherchant 5180 MHz (canal 36) dans iw phy.
+# [FR] RTL8812AU (Wlan_Ap/phy#1) et RTL8811AU (Wlan_Jam/phy#0): retournent 0 (5GHz présent et activé).
+# [FR] Retourne: 0=5GHz disponible, 1=non supporté, 2=supporté mais désactivé par config.
 function get_5ghz_band_info_from_phy_interface() {
 
 	debug_print
@@ -1644,6 +1781,9 @@ function get_5ghz_band_info_from_phy_interface() {
 }
 
 #Check 6Ghz band info from a given physical interface
+# [FR] Vérifie si l'adaptateur supporte la bande 6GHz (WiFi6E) en cherchant 5955 MHz.
+# [FR] RTL8812AU/RTL8811AU: retournent 1 (6GHz non supporté - ces adaptateurs sont WiFi5/ac).
+# [FR] Retourne: 0=6GHz disponible, 1=non supporté, 2=supporté mais désactivé.
 function get_6ghz_band_info_from_phy_interface() {
 
 	debug_print
@@ -1663,6 +1803,9 @@ function get_6ghz_band_info_from_phy_interface() {
 }
 
 #Detect country code and if region is set
+# [FR] Lit le code pays réglementaire configuré via 'iw reg get' (ex: FR, US, DE).
+# [FR] Si le code est invalide ou absent (00/99/mondial), stocke "00".
+# [FR] Important pour les canaux DFS (100-140 en 5GHz) qui nécessitent un pays configuré.
 function region_check() {
 
 	debug_print
@@ -1672,6 +1815,9 @@ function region_check() {
 }
 
 #Prepare monitor mode avoiding the use of airmon-ng or airmon-zc generating two interfaces from one for WPA3 downgrade attack
+# [FR] Crée une interface monitor virtuelle (mon0/mon1) pour l'attaque WPA3 downgrade.
+# [FR] Compatible RTL8812AU: utilise 'iw phy add type monitor' (pas airmon-ng).
+# [FR] L'interface principale reste en mode managed pour l'AP Evil Twin.
 function prepare_wpa3_downgrade_monitor() {
 
 	debug_print
@@ -1687,6 +1833,9 @@ function prepare_wpa3_downgrade_monitor() {
 }
 
 #Prepare monitor mode avoiding the use of airmon-ng or airmon-zc generating two interfaces from one for Evil Twin attacks
+# [FR] Crée une interface monitor virtuelle (mon0/mon1) pour l'attaque Evil Twin.
+# [FR] Compatible RTL8812AU (Wlan_Ap/phy1): utilise 'iw phy interface add type monitor'.
+# [FR] L'interface principale garde son mode pour l'AP factice (hostapd).
 function prepare_et_monitor() {
 
 	debug_print
@@ -1702,6 +1851,9 @@ function prepare_et_monitor() {
 }
 
 #Assure the mode of the interface before the Evil Twin or Enterprise process
+# [FR] Met l'interface en mode managed avant de démarrer une attaque Evil Twin/Enterprise.
+# [FR] Si l'interface est en monitor: utilise airmon-ng stop (si compatible) ou iw set type managed.
+# [FR] RTL8812AU/RTL8811AU: utilise set_mode_without_airmon (airmon non compatible).
 function prepare_et_interface() {
 
 	debug_print
@@ -1740,6 +1892,9 @@ function prepare_et_interface() {
 }
 
 #Restore the state of the interfaces after Evil Twin or Enterprise attack process
+# [FR] Restaure les interfaces dans leur état d'origine après une attaque Evil Twin/Enterprise.
+# [FR] Supprime l'interface virtuelle monitor (mon0/mon1) créée durant l'attaque.
+# [FR] Supprime les routes IP de l'AP factice et restaure managed/monitor selon et_initial_state.
 function restore_et_interface() {
 
 	debug_print
@@ -1791,6 +1946,8 @@ function restore_et_interface() {
 }
 
 #Assure the mode of the interface before the WPA3 downgrade attack process
+# [FR] Met l'interface en mode managed avant l'attaque WPA3 downgrade (même logique que prepare_et_interface).
+# [FR] Sauvegarde l'état initial dans downgrade_initial_state pour la restauration après l'attaque.
 function prepare_wpa3_downgrade_interface() {
 
 	debug_print
@@ -1828,7 +1985,9 @@ function prepare_wpa3_downgrade_interface() {
 	fi
 }
 
-#Restore the state of the interfaces after WAP3 downgrade attack process
+#Restore the state of the interfaces after WPA3 downgrade attack process
+# [FR] Restaure les interfaces après une attaque WPA3 downgrade (symétrique à prepare_wpa3_downgrade_interface).
+# [FR] Note: correction typo dans le nom original (WAP3 → WPA3).
 function restore_wpa3_downgrade_interface() {
 
 	debug_print
@@ -1875,6 +2034,8 @@ function restore_wpa3_downgrade_interface() {
 }
 
 #Unblock if possible the interface if blocked
+# [FR] Débloque toutes les interfaces Wi-Fi bloquées par rfkill (kill switch logiciel/matériel).
+# [FR] Important pour les adaptateurs USB comme RTL8812AU/RTL8811AU qui peuvent être bloqués.
 function disable_rfkill() {
 
 	debug_print
@@ -1885,6 +2046,10 @@ function disable_rfkill() {
 }
 
 #Set the interface on managed mode and manage the possible name change
+# [FR] Bascule l'interface Wi-Fi en mode managed (station normale).
+# [FR] Gère deux chemins: airmon-ng compatible (renomme l'interface) vs non-compatible (RTL = iw direct).
+# [FR] RTL8812AU (Wlan_Ap) et RTL8811AU (Wlan_Jam): interface_airmon_compatible=0 → set_mode_without_airmon.
+# [FR] Met à jour les variables interface, phy_interface, ifacemode après le changement.
 function managed_option() {
 
 	debug_print
@@ -1954,6 +2119,10 @@ function managed_option() {
 }
 
 #Set the interface on monitor mode and manage the possible name change
+# [FR] Bascule l'interface Wi-Fi en mode monitor (écoute passive + injection).
+# [FR] Gère deux chemins: airmon-ng (renomme l'iface) vs iw direct (RTL8812AU/RTL8811AU).
+# [FR] RTL8812AU: utilise set_mode_without_airmon → iw set type monitor (corrigé vs original).
+# [FR] Peut killer les processus bloquants (NetworkManager, wpa_supplicant) si nécessaire.
 function monitor_option() {
 
 	debug_print
@@ -2049,6 +2218,13 @@ function monitor_option() {
 }
 
 #Set the interface on monitor/managed mode without airmon
+# [FR] Change le mode d'une interface Wi-Fi en monitor ou managed sans utiliser airmon-ng.
+# [FR] Utilisé principalement pour les chipsets RTL (RTL8812AU/RTL8811AU) qui ne supportent
+# [FR] pas les combinaisons d'interfaces et nécessitent d'utiliser iw directement.
+# [FR] Paramètres : ${1} = nom de l'interface, ${2} = "monitor" ou "managed"
+# [FR] IMPORTANT: On utilise "iw dev <iface> set type monitor/managed" et non
+# [FR] "iw <iface> set monitor control" qui ne fait que configurer les FLAGS monitor
+# [FR] (cette dernière commande nécessite que l'interface soit DÉJÀ en mode monitor).
 function set_mode_without_airmon() {
 
 	debug_print
@@ -2056,17 +2232,24 @@ function set_mode_without_airmon() {
 	local error
 	local mode
 
+	# [FR] L'interface doit être DOWN avant de changer son type
 	ip link set "${1}" down > /dev/null 2>&1
 
 	if [ "${2}" = "monitor" ]; then
 		mode="monitor"
-		iw "${1}" set monitor control > /dev/null 2>&1
+		# [FR] CORRECTION: Utilisation de "set type monitor" pour changer le TYPE de l'interface.
+		# [FR] "set monitor control" ne fait que configurer les FLAGS d'une interface déjà en monitor
+		# [FR] et échouerait si l'interface est encore en mode managed (ce qui est le cas ici).
+		# [FR] Compatible RTL8812AU (Wlan_Ap/phy#1) et RTL8811AU (Wlan_Jam/phy#0).
+		iw "${1}" set type monitor > /dev/null 2>&1
 	else
 		mode="managed"
+		# [FR] Retour en mode managed (géré/station), syntaxe correcte avec "set type"
 		iw "${1}" set type managed > /dev/null 2>&1
 	fi
 
 	error=$?
+	# [FR] Remise en marche de l'interface après le changement de mode
 	ip link set "${1}" up > /dev/null 2>&1
 
 	if [ "${error}" != 0 ]; then
@@ -2076,30 +2259,38 @@ function set_mode_without_airmon() {
 }
 
 #Check the interface mode
+# [FR] Détermine le mode actuel d'une interface Wi-Fi (Managed, Monitor ou non-Wi-Fi).
+# [FR] Met à jour la variable globale 'ifacemode' avec le mode détecté.
+# [FR] Si le mode est inconnu (ex: AP, IBSS en standalone), arrête le script avec erreur.
 function check_interface_mode() {
 
 	debug_print
 
 	current_iface_on_messages="${1}"
+	# [FR] Vérifie d'abord si c'est bien un adaptateur Wi-Fi
 	if ! check_interface_wifi "${1}"; then
 		ifacemode="(Non wifi adapter)"
 		return 0
 	fi
 
-	modemanaged=$(iw "${1}" info 2> /dev/null | grep type | awk '{print $2}')
+	# [FR] Lit le type de l'interface via iw (managed, monitor, AP, etc.)
+	# [FR] OPTIMISATION: on appelle iw UNE SEULE FOIS et on réutilise le résultat
+	# [FR] pour éviter le double appel redondant de l'implémentation originale.
+	local current_mode
+	current_mode=$(iw "${1}" info 2> /dev/null | grep type | awk '{print $2}')
 
-	if [[ ${modemanaged^} = "Managed" ]]; then
+	if [[ ${current_mode^} = "Managed" ]]; then
 		ifacemode="Managed"
 		return 0
 	fi
 
-	modemonitor=$(iw "${1}" info 2> /dev/null | grep type | awk '{print $2}')
-
-	if [[ ${modemonitor^} = "Monitor" ]]; then
+	# [FR] Réutilise la valeur déjà lue (pas de second appel iw redondant)
+	if [[ ${current_mode^} = "Monitor" ]]; then
 		ifacemode="Monitor"
 		return 0
 	fi
 
+	# [FR] Mode inconnu (AP standalone, IBSS, etc.) - situation non gérée, arrêt du script
 	language_strings "${language}" 23 "red"
 	language_strings "${language}" 115 "read"
 	exit_code=1
@@ -2107,6 +2298,10 @@ function check_interface_mode() {
 }
 
 #WPA3 attacks menu
+# [FR] Menu des attaques WPA3 (downgrade vers WPA2, capture handshake SAE, etc.).
+# [FR] "Hookable" = extensible par les plugins qui peuvent y ajouter des options.
+# [FR] Vérifie que l'adaptateur supporte les VIF (nécessaire pour créer une interface monitor
+# [FR] supplémentaire pendant que l'AP tourne). RTL8812AU: supporte les VIF.
 function hookable_wpa3_attacks_menu() {
 
 	debug_print
@@ -2198,6 +2393,8 @@ function hookable_wpa3_attacks_menu() {
 }
 
 #Option menu
+# [FR] Menu de configuration des options d'airgeddon (couleurs, sons, 5GHz, 6GHz, MAC spoofing...).
+# [FR] Chaque option est stockée dans le fichier rc (~/.airgeddon.rc) pour persistance entre sessions.
 function option_menu() {
 
 	debug_print
@@ -2750,6 +2947,9 @@ function option_menu() {
 }
 
 #Language change menu
+# [FR] Menu de sélection de la langue d'interface (13 langues supportées).
+# [FR] Permet de changer la langue temporairement (session) ou de façon permanente
+# [FR] en modifiant la variable 'language' dans airgeddon.sh lui-même.
 function language_menu() {
 
 	debug_print
@@ -2914,6 +3114,11 @@ function language_menu() {
 }
 
 #Read the chipset for an interface
+# [FR] Identifie le chipset d'une interface Wi-Fi en lisant le bus USB (lsusb) ou PCI (lspci).
+# [FR] Pour USB: lit /sys/class/net/<iface>/device/modalias pour extraire vendor:device (ex: 0bda:8812).
+# [FR] RTL8812AU (Wlan_Ap, 0bda:8812): "RTL8812AU 802.11ac WLAN Adapter"
+# [FR] RTL8811AU (Wlan_Jam, 0bda:0811): "Realtek 8812AU/8821AU 802.11ac WLAN Adapter"
+# [FR] Mode "read_only": stocke dans requested_chipset (sans modifier chipset global).
 function set_chipset() {
 
 	debug_print
@@ -2976,6 +3181,9 @@ function set_chipset() {
 }
 
 #Manage and validate the prerequisites for DoS Pursuit mode integrated on Evil Twin and Enterprise attacks
+# [FR] Gère le mode DoS Pursuit : suit la cible sur changement de canal pendant une attaque.
+# [FR] Vérifie que l'interface secondaire (Wlan_Jam/RTL8811AU) supporte la bande de la cible (5GHz si canal>14).
+# [FR] Active le monitor sur l'interface secondaire si pas déjà en place.
 function dos_pursuit_mode_et_handler() {
 
 	debug_print
@@ -3042,6 +3250,9 @@ function dos_pursuit_mode_et_handler() {
 }
 
 #Secondary interface selection menu for Evil Twin, Enterprise attacks DoS pursuit mode and others
+# [FR] Sélectionne l'interface Wi-Fi secondaire (ex: Wlan_Jam/RTL8811AU pour le DoS).
+# [FR] L'interface secondaire est distincte de l'interface principale pour permettre des attaques simultanées
+# [FR] (ex: AP Evil Twin sur Wlan_Ap + déauthentification sur Wlan_Jam).
 function select_secondary_interface() {
 
 	debug_print
@@ -3097,10 +3308,11 @@ function select_secondary_interface() {
 	if [[ "${1}" = "dos_pursuit_mode" ]] || [[ "${1}" = "secondary_interface" ]]; then
 		readarray -t secondary_ifaces < <(iw dev | grep "Interface" | awk '{print $2}' | grep "${interface}" -v)
 	elif [ "${1}" = "internet" ]; then
+		# Exclut lo, eth0 (carte PCI protégée), et les interfaces WiFi déjà sélectionnées
 		if [ -n "${secondary_wifi_interface}" ]; then
-			readarray -t secondary_ifaces < <(ip link | grep -E "^[0-9]+" | cut -d ':' -f 2 | awk '{print $1}' | grep -E "^lo$" -v | grep "${interface}" -v | grep "${secondary_wifi_interface}" -v)
+			readarray -t secondary_ifaces < <(ip link | grep -E "^[0-9]+" | cut -d ':' -f 2 | awk '{print $1}' | grep -Ev "^lo$|^eth[0-9]+$|^en[opsx][0-9]" | grep "${interface}" -v | grep "${secondary_wifi_interface}" -v)
 		else
-			readarray -t secondary_ifaces < <(ip link | grep -E "^[0-9]+" | cut -d ':' -f 2 | awk '{print $1}' | grep -E "^lo$" -v | grep "${interface}" -v)
+			readarray -t secondary_ifaces < <(ip link | grep -E "^[0-9]+" | cut -d ':' -f 2 | awk '{print $1}' | grep -Ev "^lo$|^eth[0-9]+$|^en[opsx][0-9]" | grep "${interface}" -v)
 		fi
 	fi
 
@@ -3219,6 +3431,11 @@ function select_secondary_interface() {
 }
 
 #Interface selection menu
+# [FR] Menu de sélection de l'interface Wi-Fi principale à utiliser pour les attaques.
+# [FR] Liste toutes les interfaces réseau avec leur chipset (via set_chipset), bandes supportées
+# [FR] (2.4/5/6GHz) et standard Wi-Fi (WiFi4/5/6/7).
+# [FR] Pour RTL8812AU (Wlan_Ap): affiche "2.4Ghz, 5Ghz (WiFi5)" | RTL8811AU (Wlan_Jam): pareil.
+# [FR] Sauvegarde les variables prev_* pour restaurer l'état après l'affichage du menu.
 function select_interface() {
 
 	debug_print
@@ -3238,7 +3455,8 @@ function select_interface() {
 	current_menu="select_interface_menu"
 	language_strings "${language}" 24 "green"
 	print_simple_separator
-	ifaces=$(ip link | grep -E "^[0-9]+" | cut -d ':' -f 2 | awk '{print $1}' | grep -E "^lo$" -v)
+	# Exclut lo (loopback), eth0 (carte internet PCI), nordlynx (VPN) — interfaces non-WiFi
+	ifaces=$(ip link | grep -E "^[0-9]+" | cut -d ':' -f 2 | awk '{print $1}' | grep -Ev "^lo$|^eth[0-9]+$|^en[opsx][0-9]|^nordlynx$")
 	option_counter=0
 	for item in ${ifaces}; do
 		option_counter=$((option_counter + 1))
@@ -3341,6 +3559,7 @@ function select_interface() {
 }
 
 #Read the user input on yes/no questions
+# [FR] Affiche une question oui/non et lit la réponse utilisateur dans la variable 'yesno'.
 function read_yesno() {
 
 	debug_print
@@ -3351,6 +3570,8 @@ function read_yesno() {
 }
 
 #Validate the input on yes/no questions
+# [FR] Affiche et valide une question oui/non. Accepte y/Y/n/N (et équivalents localisés).
+# [FR] Paramètre 2 : valeur par défaut si l'utilisateur appuie directement sur Entrée ("yes" ou "no").
 function ask_yesno() {
 
 	debug_print
@@ -3389,6 +3610,7 @@ function ask_yesno() {
 }
 
 #Read the user input on channel questions
+# [FR] Lit le numéro de canal Wi-Fi saisi par l'utilisateur.
 function read_channel() {
 
 	debug_print
@@ -3410,6 +3632,8 @@ function read_channel() {
 }
 
 #Validate the input on channel questions
+# [FR] Valide le canal saisi : doit être dans la liste 2.4GHz (1-14) ou 5GHz (36-165) ou 6GHz.
+# [FR] Met à jour channel et propose de réutiliser le canal déjà trouvé lors d'un scan.
 function ask_channel() {
 
 	debug_print
@@ -3472,6 +3696,8 @@ function ask_channel() {
 }
 
 #Set target band id based on selected channel
+# [FR] Déduit l'identifiant de bande (2.4/5/6GHz) depuis le numéro de canal sélectionné.
+# [FR] Canaux 1-14 → 2.4GHz | 36-177 → 5GHz | >177 → 6GHz.
 function set_target_band_id_from_channel() {
 
 	debug_print
@@ -3513,6 +3739,8 @@ function set_target_band_id_from_channel() {
 }
 
 #Set WPS target band id based on selected channel
+# [FR] Même logique que set_target_band_id_from_channel mais pour les attaques WPS.
+# [FR] Stocke le résultat dans wps_target_band_id.
 function set_wps_target_band_id_from_channel() {
 
 	debug_print
@@ -3549,6 +3777,7 @@ function set_wps_target_band_id_from_channel() {
 }
 
 #Read the user input on asleap challenge
+# [FR] Lit le challenge MSCHAP capturé pendant une attaque Enterprise (pour asleap).
 function read_challenge() {
 
 	debug_print
@@ -3559,6 +3788,7 @@ function read_challenge() {
 }
 
 #Read the user input on asleap response
+# [FR] Lit la réponse MSCHAP capturée pendant une attaque Enterprise (pour asleap).
 function read_response() {
 
 	debug_print
@@ -3569,6 +3799,7 @@ function read_response() {
 }
 
 #Read the user input on bssid questions
+# [FR] Lit un BSSID (adresse MAC de l'AP) saisi par l'utilisateur au format XX:XX:XX:XX:XX:XX.
 function read_bssid() {
 
 	debug_print
@@ -3583,6 +3814,8 @@ function read_bssid() {
 }
 
 #Validate the input on bssid questions
+# [FR] Valide le BSSID saisi avec un regex (format AA:BB:CC:DD:EE:FF).
+# [FR] Propose de réutiliser le BSSID déjà scanné si disponible.
 function ask_bssid() {
 
 	debug_print
@@ -3656,6 +3889,7 @@ function ask_bssid() {
 }
 
 #Read the user input on essid questions
+# [FR] Lit le nom du réseau (ESSID/SSID) saisi par l'utilisateur.
 function read_essid() {
 
 	debug_print
@@ -3666,6 +3900,8 @@ function read_essid() {
 }
 
 #Check if selected essid is hidden and offer a change
+# [FR] Détecte si l'ESSID cible est caché (réseau masqué) et propose de le modifier.
+# [FR] Les réseaux cachés affichent une chaîne vide ou des caractères null dans airodump-ng.
 function check_hidden_essid() {
 
 	debug_print
@@ -3705,6 +3941,7 @@ function check_hidden_essid() {
 }
 
 #Validate the input on essid questions
+# [FR] Valide et enregistre l'ESSID. Propose de réutiliser celui du scan si disponible.
 function ask_essid() {
 
 	debug_print
@@ -3721,6 +3958,7 @@ function ask_essid() {
 }
 
 #Read the user input on custom pin questions
+# [FR] Lit un PIN WPS personnalisé de 4 ou 8 chiffres saisi par l'utilisateur.
 function read_custom_pin() {
 
 	debug_print
@@ -3731,6 +3969,7 @@ function read_custom_pin() {
 }
 
 #Validate the input on custom pin questions
+# [FR] Valide le PIN WPS personnalisé : doit être numérique et faire exactement 4 ou 8 chiffres.
 function ask_custom_pin() {
 
 	debug_print
@@ -3746,6 +3985,8 @@ function ask_custom_pin() {
 }
 
 #Read the user input on timeout questions
+# [FR] Lit le timeout (en secondes) pour limiter la durée d'une attaque.
+# [FR] Utile pour les attaques longues (bruteforce, scan WPS) afin de ne pas bloquer indéfiniment.
 function read_timeout() {
 
 	debug_print
@@ -3787,6 +4028,8 @@ function read_timeout() {
 }
 
 #Validate the user input for timeouts
+# [FR] Valide que le timeout saisi est un entier positif > 0.
+# [FR] Un timeout de 0 = infini (pas de limite temporelle).
 function ask_timeout() {
 
 	debug_print
@@ -3875,6 +4118,8 @@ function ask_timeout() {
 }
 
 #Handle the proccess of checking enterprise certificates capture
+# [FR] Vérifie si des certificats d'entreprise ont été capturés lors d'une attaque Evil Twin Enterprise.
+# [FR] Analyse les fichiers de capture de hostapd-mana/hostapd-wpe pour extraire les certificats.
 function enterprise_certificates_check() {
 
 	debug_print
@@ -3899,6 +4144,8 @@ function enterprise_certificates_check() {
 }
 
 #Handle the proccess of checking enterprise identities capture
+# [FR] Vérifie si des identités (usernames) d'entreprise ont été capturés lors d'une attaque Evil Twin Enterprise.
+# [FR] Les identités sont les noms d'utilisateurs RADIUS envoyés avant l'authentification.
 function enterprise_identities_check() {
 
 	debug_print
@@ -3923,6 +4170,8 @@ function enterprise_identities_check() {
 }
 
 #Handle the proccess of checking decloak capture
+# [FR] Vérifie si le SSID d'un réseau caché a été révélé (decloak) par mdk4 ou par scan de trames probe.
+# [FR] Les réseaux cachés ne diffusent pas leur SSID mais l'envoient dans les trames probe-response.
 function decloak_check() {
 
 	debug_print
@@ -3947,6 +4196,9 @@ function decloak_check() {
 }
 
 #Handle the proccess of checking handshake capture
+# [FR] Surveille en boucle (toutes les 5s) le fichier de capture pour détecter un handshake WPA valide.
+# [FR] S'arrête dès que le handshake est détecté ou que le timeout est atteint.
+# [FR] Tue le processus de capture (airodump-ng) après la détection.
 function handshake_capture_check() {
 
 	debug_print
@@ -3971,6 +4223,9 @@ function handshake_capture_check() {
 }
 
 #Generate the needed config files for certificates creation
+# [FR] Génère les fichiers de configuration openssl (server.cnf, ca.cnf, xpextensions) pour
+# [FR] créer des certificats Enterprise personnalisés. Utilise les variables custom_certificates_*.
+# [FR] Les certificats créés servent à hostapd-mana/wpe pour les attaques Enterprise.
 #shellcheck disable=SC2016
 function create_certificates_config_files() {
 
@@ -4095,6 +4350,9 @@ function create_certificates_config_files() {
 }
 
 #Manage the questions to decide if custom certificates are used
+# [FR] Demande à l'utilisateur s'il veut utiliser des certificats custom pour l'attaque Enterprise.
+# [FR] Si oui, propose de réutiliser un chemin existant ou d'en saisir un nouveau. Valide le dossier.
+# [FR] Retourne 0 si prêt (certificats trouvés ou non requis), 1 en cas d'erreur de chemin.
 #shellcheck disable=SC2181
 function custom_certificates_integration() {
 
@@ -4178,6 +4436,8 @@ function custom_certificates_integration() {
 }
 
 #Validate if certificates files are correct
+# [FR] Vérifie l'existence, la lisibilité et la validité des 3 fichiers de certificats (server.pem, ca.pem, server.key).
+# [FR] Retourne: 0=OK, 1=fichier manquant, 2=certificat expiré, 3=clé privée invalide.
 function validate_certificates() {
 
 	debug_print
@@ -4198,6 +4458,9 @@ function validate_certificates() {
 }
 
 #Create custom certificates
+# [FR] Génère une PKI complète (CA + certificat serveur + clé DH) avec openssl pour l'attaque Enterprise.
+# [FR] Crée: server.pem, ca.pem, server.key, dh (Diffie-Hellman params) dans le répertoire temporaire.
+# [FR] Les certificats sont valides 3650 jours (10 ans) pour éviter les erreurs d'expiration.
 function create_custom_certificates() {
 
 	debug_print
@@ -4219,6 +4482,8 @@ function create_custom_certificates() {
 }
 
 #Set up custom certificates
+# [FR] Pose les questions sur les données du certificat (pays, état, organisation, domaine).
+# [FR] Ces données personnalisent le certificat pour mieux imiter un réseau d'entreprise réel.
 function custom_certificates_questions() {
 
 	debug_print
@@ -4267,6 +4532,8 @@ function custom_certificates_questions() {
 }
 
 #Read the user input on custom certificates questions
+# [FR] Lit les données pour générer un certificat personnalisé (pays, état, ville, org, email, CN/domaine).
+# [FR] Valide le format email et le CN (Common Name) avec des regex strictes.
 function read_certificates_data() {
 
 	debug_print
@@ -4304,6 +4571,8 @@ function read_certificates_data() {
 }
 
 #Prepare enterprise identities capture and certificates analysis
+# [FR] Prépare et lance l'analyse des captures Enterprise (identités RADIUS + certificats TLS).
+# [FR] Vérifie que le BSSID, ESSID et canal sont définis avant de lancer l'analyse.
 function enterprise_identities_and_certitifcates_analysis() {
 
 	debug_print
@@ -4340,6 +4609,8 @@ function enterprise_identities_and_certitifcates_analysis() {
 }
 
 #Validate if selected network is the needed type (enterprise or personal)
+# [FR] Vérifie que le réseau sélectionné correspond au type requis par l'attaque (enterprise ou personal).
+# [FR] WPA-Enterprise utilise RADIUS (802.1X) | WPA-Personal utilise PSK (clé partagée).
 function validate_network_type() {
 
 	debug_print
@@ -4367,6 +4638,8 @@ function validate_network_type() {
 }
 
 #Refresh target band id when possible without prompting
+# [FR] Met à jour automatiquement l'identifiant de bande cible (2.4/5/6GHz) si possible,
+# [FR] sans demander à l'utilisateur (utilise le canal déjà sélectionné).
 function refresh_target_band_id_if_needed() {
 
 	debug_print
@@ -4429,6 +4702,9 @@ function refresh_target_band_id_if_needed() {
 }
 
 #Check target band support for a given interface
+# [FR] Vérifie que l'interface supporte la bande de la cible (2.4/5/6GHz).
+# [FR] Si la cible est en 5GHz mais que AIRGEDDON_5GHZ_ENABLED=false → erreur.
+# [FR] RTL8812AU et RTL8811AU supportent 2.4 ET 5GHz → pas de restriction normalement.
 function check_target_band_supported_by_interface() {
 
 	debug_print
@@ -4466,6 +4742,8 @@ function check_target_band_supported_by_interface() {
 }
 
 #Check 6Ghz support for attacks relying on third-party tools
+# [FR] Vérifie si les outils tiers (reaver, bully, etc.) supportent la bande 6GHz.
+# [FR] Certains outils anciens ne supportent pas le 6GHz → affiche un avertissement.
 function check_6ghz_thirdparty_tools_compatibility() {
 
 	debug_print
@@ -4485,6 +4763,7 @@ function check_6ghz_thirdparty_tools_compatibility() {
 }
 
 #Check 6Ghz compatibility for WPS third-party tools
+# [FR] Vérifie la compatibilité 6GHz spécifiquement pour les outils WPS (reaver, bully, wash).
 function check_6ghz_wps_thirdparty_tools_compatibility() {
 
 	debug_print
@@ -4504,6 +4783,8 @@ function check_6ghz_wps_thirdparty_tools_compatibility() {
 }
 
 #Validate a WPA3 network (any type or only in mixed mode)
+# [FR] Vérifie que le réseau cible est bien WPA3 (ou WPA2/WPA3 mixed pour l'attaque downgrade).
+# [FR] "only_mixed" = le réseau doit être en WPA2+WPA3 mixed (vulnérable au downgrade).
 function validate_wpa3_network() {
 
 	debug_print
@@ -4541,6 +4822,8 @@ function validate_wpa3_network() {
 }
 
 #Validate if selected network has the needed type of encryption
+# [FR] Vérifie que le chiffrement du réseau cible correspond au type requis (WEP, WPA, WPA2, WPA3...).
+# [FR] Affiche une erreur si le type de chiffrement ne correspond pas à l'attaque choisie.
 function validate_network_encryption_type() {
 
 	debug_print
@@ -4568,6 +4851,9 @@ function validate_network_encryption_type() {
 }
 
 #Execute wep besside attack
+# [FR] Lance l'attaque WEP automatique avec besside-ng (outil tout-en-un de Aircrack-ng).
+# [FR] besside-ng crack automatiquement les réseaux WEP sans intervention manuelle.
+# [FR] shellcheck SC2164 : cd utilisé intentionnellement pour naviguer dans le répertoire de capture.
 #shellcheck disable=SC2164
 function exec_wep_besside_attack() {
 
@@ -4583,12 +4869,15 @@ function exec_wep_besside_attack() {
 	pushd "${tmpdir}" > /dev/null 2>&1
 	manage_output "-hold -bg \"#000000\" -fg \"#FF00FF\" -geometry ${g2_stdleft_window} -T \"WEP Besside-ng attack\"" "besside-ng -c \"${channel}\" -b \"${bssid}\" \"${interface}\" -v | tee \"${tmpdir}${wep_besside_log}\"" "WEP Besside-ng attack" "active"
 	wait_for_process "besside-ng -c \"${channel}\" -b \"${bssid//:/ }\" \"${interface}\" -v" "WEP Besside-ng attack"
-	popd "${tmpdir}" > /dev/null 2>&1
+	popd > /dev/null 2>&1
 
 	manage_wep_besside_pot
 }
 
 #Execute wep all-in-one attack
+# [FR] Lance l'attaque WEP complète : capture d'IVs (aireplay-ng) + crack (aircrack-ng).
+# [FR] Combine injection ARP pour accélérer la collecte d'IVs. Nécessite aireplay-ng.
+# [FR] shellcheck SC2164 : cd utilisé intentionnellement.
 #shellcheck disable=SC2164
 function exec_wep_allinone_attack() {
 
@@ -4617,6 +4906,7 @@ function exec_wep_allinone_attack() {
 }
 
 #Kill the wep attack processes
+# [FR] Arrête tous les processus liés à une attaque WEP (airodump-ng, aireplay-ng, aircrack-ng).
 function kill_wep_windows() {
 
 	debug_print
@@ -4638,6 +4928,7 @@ function kill_wep_windows() {
 }
 
 #Prepare wep attacks deleting temp files
+# [FR] Nettoie les fichiers temporaires WEP des attaques précédentes avant d'en lancer une nouvelle.
 function prepare_wep_attack() {
 
 	debug_print
@@ -4656,6 +4947,8 @@ function prepare_wep_attack() {
 }
 
 #Create here-doc bash script used for key handling on wep all-in-one and besside attacks
+# [FR] Génère un script bash embarqué (here-doc) qui surveille la clé WEP trouvée.
+# [FR] Ce script s'exécute dans une fenêtre xterm séparée et affiche la clé dès qu'elle est craquée.
 function set_wep_key_script() {
 
 	debug_print
@@ -4852,6 +5145,8 @@ function set_wep_key_script() {
 }
 
 #Create here-doc bash script used for wep all-in-one attack
+# [FR] Génère le script complexe de l'attaque WEP all-in-one (here-doc bash dans xterm).
+# [FR] Ce script orchestre: fake auth → capture airodump → injection aireplay → crack aircrack.
 function set_wep_script() {
 
 	debug_print
@@ -5197,11 +5492,13 @@ function set_wep_script() {
 		done
 
 		#shellcheck disable=SC2164
-		popd "${tmpdir}${wepdir}" > /dev/null 2>&1
+		popd > /dev/null 2>&1
 	EOF
 }
 
 #Execute wps custom pin bully attack
+# [FR] Lance une attaque WPS avec un PIN personnalisé en utilisant bully.
+# [FR] Utile quand on connaît déjà le PIN ou quand on veut tester un PIN spécifique calculé par algorithme.
 function exec_wps_custom_pin_bully_attack() {
 
 	debug_print
@@ -5220,6 +5517,8 @@ function exec_wps_custom_pin_bully_attack() {
 }
 
 #Execute wps custom pin reaver attack
+# [FR] Lance une attaque WPS avec un PIN personnalisé en utilisant reaver.
+# [FR] Reaver est plus compatible que bully avec certains routeurs anciens.
 function exec_wps_custom_pin_reaver_attack() {
 
 	debug_print
@@ -5238,6 +5537,9 @@ function exec_wps_custom_pin_reaver_attack() {
 }
 
 #Execute bully pixie dust attack
+# [FR] Lance l'attaque Pixie Dust WPS avec bully + pixiewps.
+# [FR] Pixie Dust exploite une mauvaise génération de nombres aléatoires dans certains routeurs
+# [FR] pour calculer le PIN WPS en quelques secondes sans bruteforce.
 function exec_bully_pixiewps_attack() {
 
 	debug_print
@@ -5256,6 +5558,7 @@ function exec_bully_pixiewps_attack() {
 }
 
 #Execute reaver pixie dust attack
+# [FR] Lance l'attaque Pixie Dust WPS avec reaver + pixiewps (alternative à bully).
 function exec_reaver_pixiewps_attack() {
 
 	debug_print
@@ -5274,6 +5577,8 @@ function exec_reaver_pixiewps_attack() {
 }
 
 #Execute wps bruteforce pin bully attack
+# [FR] Lance un bruteforce WPS complet avec bully (teste tous les PINs 00000000-99999999).
+# [FR] Long (peut durer des heures) mais efficace si le routeur n'a pas de lockout WPS.
 function exec_wps_bruteforce_pin_bully_attack() {
 
 	debug_print
@@ -5292,6 +5597,7 @@ function exec_wps_bruteforce_pin_bully_attack() {
 }
 
 #Execute wps bruteforce pin reaver attack
+# [FR] Lance un bruteforce WPS complet avec reaver (alternative à bully).
 function exec_wps_bruteforce_pin_reaver_attack() {
 
 	debug_print
@@ -5310,6 +5616,8 @@ function exec_wps_bruteforce_pin_reaver_attack() {
 }
 
 #Execute wps pin database bully attack
+# [FR] Attaque WPS avec les PINs de la base de données known_pins.db via bully.
+# [FR] Teste uniquement les PINs connus pour le fabricant (OUI) → rapide et ciblé.
 function exec_wps_pin_database_bully_attack() {
 
 	debug_print
@@ -5324,6 +5632,7 @@ function exec_wps_pin_database_bully_attack() {
 }
 
 #Execute wps pin database reaver attack
+# [FR] Attaque WPS avec les PINs de la base de données known_pins.db via reaver.
 function exec_wps_pin_database_reaver_attack() {
 
 	debug_print
@@ -5338,6 +5647,8 @@ function exec_wps_pin_database_reaver_attack() {
 }
 
 #Execute wps null pin reaver attack
+# [FR] Teste le PIN vide (null) avec reaver - certains vieux routeurs acceptent un PIN nul.
+# [FR] Rapide (1 tentative) - à tester en premier sur les cibles potentiellement vulnérables.
 function exec_reaver_nullpin_attack() {
 
 	debug_print
@@ -5356,6 +5667,9 @@ function exec_reaver_nullpin_attack() {
 }
 
 #Execute DoS pursuit mode attack
+# [FR] Lance et gère le mode DoS Pursuit : suit la cible sur changement de canal en temps réel.
+# [FR] Surveille le canal courant de la cible et repositionne automatiquement l'interface secondaire.
+# [FR] Nécessite deux adaptateurs (ex: Wlan_Ap pour l'AP + Wlan_Jam pour le DoS).
 function launch_dos_pursuit_mode_attack() {
 
 	debug_print
@@ -5545,6 +5859,9 @@ function launch_dos_pursuit_mode_attack() {
 }
 
 #Parse and control pids for DoS pursuit mode attack
+# [FR] Contrôle le mode Pursuit DoS : surveille les changements de canal du point d'accès cible
+# [FR] et relance aireplay-ng sur le nouveau canal pour maintenir le DoS en continu.
+# [FR] Utilisé avec l'interface secondaire Wlan_Jam (RTL8811AU/phy#0).
 pid_control_pursuit_mode() {
 
 	debug_print
@@ -5601,6 +5918,9 @@ pid_control_pursuit_mode() {
 }
 
 #Execute mdk deauth DoS attack
+# [FR] Lance une attaque de déauthentification massive avec mdk4 (ou mdk3).
+# [FR] Envoie des trames de déauthentification 802.11 en mode broad-spectrum pour déconnecter les clients.
+# [FR] Compatible RTL8812AU (Wlan_Ap) et RTL8811AU (Wlan_Jam) en mode monitor.
 function exec_mdkdeauth() {
 
 	debug_print
@@ -5633,6 +5953,9 @@ function exec_mdkdeauth() {
 }
 
 #Execute aireplay DoS attack
+# [FR] Lance une attaque de déauthentification ciblée avec aireplay-ng (-0).
+# [FR] Plus précise que mdk4 : cible un BSSID et/ou un client spécifique.
+# [FR] RTL8812AU supporte l'injection de paquets → compatible avec aireplay-ng.
 function exec_aireplaydeauth() {
 
 	debug_print
@@ -5662,6 +5985,8 @@ function exec_aireplaydeauth() {
 }
 
 #Execute WDS confusion DoS attack
+# [FR] Lance l'attaque WDS Confusion avec mdk4 : perturbe le routage WDS (Wireless Distribution System).
+# [FR] Efficace contre les réseaux en mode mesh/WDS (répéteurs, ponts Wi-Fi).
 function exec_wdsconfusion() {
 
 	debug_print
@@ -5691,6 +6016,8 @@ function exec_wdsconfusion() {
 }
 
 #Execute Beacon flood DoS attack
+# [FR] Lance l'attaque Beacon Flood : inonde la zone de fausses balises Wi-Fi avec mdk4.
+# [FR] Surcharge les scanners Wi-Fi des clients et peut causer des problèmes de connectivité.
 function exec_beaconflood() {
 
 	debug_print
@@ -5720,6 +6047,8 @@ function exec_beaconflood() {
 }
 
 #Execute Auth DoS attack
+# [FR] Lance l'attaque Auth DoS : envoie des milliers de requêtes d'authentification avec mdk4.
+# [FR] Épuise la table d'association du routeur, empêchant les vrais clients de se connecter.
 function exec_authdos() {
 
 	debug_print
@@ -5749,6 +6078,8 @@ function exec_authdos() {
 }
 
 #Execute Michael Shutdown DoS attack
+# [FR] Lance l'attaque Michael Shutdown : exploite la contre-mesure TKIP Michael MIC.
+# [FR] En cas de 2 erreurs MIC en moins d'une minute, le routeur se déconnecte 60 secondes.
 function exec_michaelshutdown() {
 
 	debug_print
@@ -5778,6 +6109,8 @@ function exec_michaelshutdown() {
 }
 
 #Validate mdk parameters
+# [FR] Valide et configure les paramètres pour l'attaque mdk4 (déauthentification, beacon flood, etc.).
+# [FR] Vérifie BSSID, canal, et les options de whitelist/blacklist mdk.
 function mdk_deauth_option() {
 
 	debug_print
@@ -5854,6 +6187,8 @@ function mdk_deauth_option() {
 }
 
 #Switch mdk version
+# [FR] Bascule entre mdk3 et mdk4 (si les deux sont installés).
+# [FR] mdk4 est la version recommandée (plus stable, 6GHz, meilleure compatibilité RTL).
 function mdk_version_toggle() {
 
 	debug_print
@@ -5870,6 +6205,7 @@ function mdk_version_toggle() {
 }
 
 #Set mdk to selected version validating its existence
+# [FR] Définit la version de mdk à utiliser (mdk3 ou mdk4) après vérification de son existence.
 function set_mdk_version() {
 
 	debug_print
@@ -5889,6 +6225,7 @@ function set_mdk_version() {
 }
 
 #Validate Aireplay parameters
+# [FR] Valide les paramètres pour aireplay-ng -0 (déauthentification ciblée) : BSSID, canal, client MAC.
 function aireplay_deauth_option() {
 
 	debug_print
@@ -5965,6 +6302,7 @@ function aireplay_deauth_option() {
 }
 
 #Validate WDS confusion parameters
+# [FR] Valide les paramètres pour l'attaque WDS Confusion via mdk4 (canal, BSSID cible).
 function wds_confusion_option() {
 
 	debug_print
@@ -6044,6 +6382,7 @@ function wds_confusion_option() {
 }
 
 #Validate Beacon flood parameters
+# [FR] Valide les paramètres pour l'attaque Beacon Flood via mdk4 (liste de SSIDs à diffuser).
 function beacon_flood_option() {
 
 	debug_print
@@ -6120,6 +6459,7 @@ function beacon_flood_option() {
 }
 
 #Validate Auth DoS parameters
+# [FR] Valide les paramètres pour l'attaque Auth DoS via mdk4 (BSSID cible, durée).
 function auth_dos_option() {
 
 	debug_print
@@ -6191,6 +6531,7 @@ function auth_dos_option() {
 }
 
 #Validate Michael Shutdown parameters
+# [FR] Valide les paramètres pour l'attaque Michael Shutdown via mdk4 (BSSID, canal).
 function michael_shutdown_option() {
 
 	debug_print
@@ -6267,6 +6608,8 @@ function michael_shutdown_option() {
 }
 
 #Validate wep all-in-one and besside-ng attacks parameters
+# [FR] Valide tous les paramètres communs aux attaques WEP (all-in-one et besside-ng) :
+# [FR] BSSID, ESSID, canal, mode monitor actif, et chiffrement WEP confirmé.
 function wep_attack_option() {
 
 	debug_print
@@ -6314,6 +6657,9 @@ function wep_attack_option() {
 }
 
 #Validate wps parameters for custom pin, pixie dust, bruteforce, pin database and null pin attacks
+# [FR] Valide tous les paramètres communs aux attaques WPS : mode monitor, BSSID, canal, bande.
+# [FR] Selon le type d'attaque (custompin, pixiedust, pindb, nullpin), pose les questions spécifiques.
+# [FR] "no_monitor_check" : skip la vérification monitor (pour les appels récursifs).
 function wps_attacks_parameters() {
 
 	debug_print
@@ -6370,6 +6716,8 @@ function wps_attacks_parameters() {
 }
 
 #Print selected options
+# [FR] Affiche dans les menus toutes les options actuellement configurées (couleurs, sons, 5GHz...).
+# [FR] Chaque option affiche son état ON/OFF avec les couleurs correspondantes.
 function print_options() {
 
 	debug_print
@@ -6476,6 +6824,7 @@ function print_options() {
 }
 
 #Print selected interface
+# [FR] Affiche en haut des menus l'interface Wi-Fi principale actuellement sélectionnée, son chipset et ses bandes.
 function print_iface_selected() {
 
 	debug_print
@@ -6496,6 +6845,7 @@ function print_iface_selected() {
 }
 
 #Print selected internet interface
+# [FR] Affiche l'interface Internet (ETH ou 4G) utilisée pour l'AP Evil Twin avec portail captif.
 function print_iface_internet_selected() {
 
 	debug_print
@@ -6510,6 +6860,7 @@ function print_iface_internet_selected() {
 }
 
 #Print selected target parameters (bssid, channel, essid and type of encryption) for dos attacks menu
+# [FR] Affiche les paramètres de la cible sélectionnée (BSSID, canal, ESSID, chiffrement) dans le menu DoS.
 function print_all_target_dos_attacks_menu_vars() {
 
 	debug_print
@@ -6557,6 +6908,7 @@ function print_all_target_dos_attacks_menu_vars() {
 }
 
 #Print selected target parameters (bssid, channel, essid and type of encryption)
+# [FR] Affiche tous les paramètres cibles (BSSID, canal, ESSID, chiffrement) dans les menus généraux.
 function print_all_target_vars() {
 
 	debug_print
@@ -6585,6 +6937,7 @@ function print_all_target_vars() {
 }
 
 #Print selected target parameters on evil twin menu (bssid, channel and essid)
+# [FR] Affiche les paramètres de la cible dans le menu Evil Twin (BSSID, canal, ESSID).
 function print_all_target_vars_et() {
 
 	debug_print
@@ -6619,6 +6972,7 @@ function print_all_target_vars_et() {
 }
 
 #Print selected target parameters on evil twin submenus (bssid, channel, essid, DoS type and Handshake file)
+# [FR] Affiche dans les sous-menus Evil Twin les paramètres étendus : cible + type DoS + fichier handshake.
 function print_et_target_vars() {
 
 	debug_print
@@ -6673,6 +7027,7 @@ function print_et_target_vars() {
 }
 
 #Print selected target parameters on wps attacks menu (bssid, channel and essid)
+# [FR] Affiche les paramètres WPS dans le menu des attaques WPS (BSSID cible, canal, ESSID).
 function print_all_target_vars_wps() {
 
 	debug_print
@@ -6713,6 +7068,7 @@ function print_all_target_vars_wps() {
 }
 
 #Print selected target parameters on decrypt menu (bssid, Handshake file, dictionary file, rules file and enterprise stuff)
+# [FR] Affiche dans le menu de déchiffrement tous les paramètres : BSSID, fichier handshake, dico, règles, hashes Enterprise.
 function print_decrypt_vars() {
 
 	debug_print
@@ -6757,6 +7113,7 @@ function print_decrypt_vars() {
 }
 
 #Print selected target parameters on personal decrypt menu (bssid, Handshake file, dictionary file and rules file)
+# [FR] Affiche dans le menu de déchiffrement personnel : BSSID, fichier handshake/PMKID, dico, règles hashcat.
 function print_personal_decrypt_vars() {
 
 	debug_print
@@ -6789,6 +7146,7 @@ function print_personal_decrypt_vars() {
 }
 
 #Print selected target parameters on enterprise decrypt menu (dictionary file, rules file and hashes files)
+# [FR] Affiche dans le menu de déchiffrement Enterprise : fichiers de hashes (MSCHAP), dico et règles john/hashcat.
 function print_enterprise_decrypt_vars() {
 
 	debug_print
@@ -6815,6 +7173,7 @@ function print_enterprise_decrypt_vars() {
 }
 
 #Set the correct text to show if a selected network is enterprise or personal
+# [FR] Définit le texte d'affichage du type de réseau (Enterprise/Personal) selon les flags de détection.
 function set_personal_enterprise_text() {
 
 	debug_print
@@ -6832,6 +7191,8 @@ function set_personal_enterprise_text() {
 }
 
 #Create the dependencies arrays
+# [FR] Initialise les tableaux de dépendances pour chaque option de menu (outils requis par attaque).
+# [FR] Ex: l'attaque Evil Twin avec portail captif nécessite hostapd, dnsmasq, lighttpd, dhcpd.
 function initialize_menu_options_dependencies() {
 
 	debug_print
@@ -6866,6 +7227,8 @@ function initialize_menu_options_dependencies() {
 }
 
 #Set possible changes for some commands that can be found in different ways depending on the O.S.
+# [FR] Résout les alias de commandes selon l'OS (ex: beef-xss, beef, hostapd-mana vs hostapd-mana-common).
+# [FR] Met à jour optional_tools_names[] avec le nom d'exécutable réel trouvé dans le PATH.
 #shellcheck disable=SC2206
 function set_possible_aliases() {
 
@@ -6885,6 +7248,7 @@ function set_possible_aliases() {
 }
 
 #Modify dependencies arrays depending on selected options
+# [FR] Ajuste les tableaux de dépendances selon les options configurées (nftables vs iptables, mdk3 vs mdk4...).
 function dependencies_modifications() {
 
 	debug_print
@@ -6909,6 +7273,7 @@ function dependencies_modifications() {
 }
 
 #Initialize optional_tools values
+# [FR] Met à zéro tous les compteurs d'outils optionnels avant de les re-scanner (présent=1, absent=0).
 function initialize_optional_tools_values() {
 
 	debug_print
@@ -6921,6 +7286,8 @@ function initialize_optional_tools_values() {
 }
 
 #Set some vars depending on the menu and invoke the printing of target vars
+# [FR] Configure les variables contextuelles selon le menu actif et déclenche l'affichage des paramètres cibles.
+# [FR] Chaque menu (DoS, Evil Twin, WPS, déchiffrement...) a son propre jeu de variables à afficher.
 function initialize_menu_and_print_selections() {
 
 	debug_print
@@ -7056,6 +7423,8 @@ function initialize_menu_and_print_selections() {
 }
 
 #Function created intentionally to be hooked from plugins to modify menus easily
+# [FR] Fonction intentionnellement vide pour être remplacée (hookée) par les plugins.
+# [FR] Les plugins peuvent injecter du code ici pour modifier l'affichage des menus.
 function hookable_for_menus() {
 
 	debug_print
@@ -7064,6 +7433,8 @@ function hookable_for_menus() {
 }
 
 #Clean environment vars
+# [FR] Réinitialise toutes les variables de session (BSSID, ESSID, canal, interface secondaire...).
+# [FR] Appelée lors d'un retour au menu principal pour éviter les interférences avec la prochaine attaque.
 function clean_env_vars() {
 
 	debug_print
@@ -7072,6 +7443,8 @@ function clean_env_vars() {
 }
 
 #Control the status of the routing taking into consideration instances orchestration
+# [FR] Gère les règles de routage (iptables/nftables) en tenant compte des autres instances airgeddon actives.
+# [FR] Si plusieurs instances tournent, seule la dernière à s'arrêter nettoie vraiment les règles de routage.
 function control_routing_status() {
 
 	debug_print
@@ -7124,6 +7497,8 @@ function control_routing_status() {
 }
 
 #Clean temporary files
+# [FR] Supprime les fichiers temporaires créés par airgeddon dans /tmp/airgeddon-<pid>/.
+# [FR] Nettoyage partiel (attaque en cours) ou total (fin de session) selon le paramètre.
 function clean_tmpfiles() {
 
 	debug_print
@@ -7209,7 +7584,9 @@ function clean_tmpfiles() {
 	fi
 }
 
-#Manage cleaning firewall rules and restore orginal routing state
+#Manage cleaning firewall rules and restore original routing state
+# [FR] Restaure l'état du pare-feu (iptables/nftables) et du routage après une attaque Evil Twin.
+# [FR] Supprime les règles NAT/FORWARD ajoutées pour le portail captif ou le sniffing.
 function clean_routing_rules() {
 
 	debug_print
@@ -7224,6 +7601,8 @@ function clean_routing_rules() {
 }
 
 #Save iptables/nftables rules
+# [FR] Sauvegarde les règles iptables ou nftables actuelles avant de les modifier pour une attaque.
+# [FR] Permet une restauration propre après l'attaque (évite de laisser des règles parasites).
 function save_iptables_nftables() {
 
 	debug_print
@@ -7236,6 +7615,8 @@ function save_iptables_nftables() {
 }
 
 #Restore iptables/nftables rules
+# [FR] Restaure les règles iptables ou nftables sauvegardées avant l'attaque.
+# [FR] Utilise iptables-restore / nft -f selon la version de pare-feu détectée sur le système.
 function restore_iptables_nftables() {
 
 	debug_print
@@ -7248,6 +7629,8 @@ function restore_iptables_nftables() {
 }
 
 #Prepare iptables/nftables after a clean to avoid errors
+# [FR] Prépare un état minimal valide de iptables/nftables après nettoyage pour éviter les erreurs.
+# [FR] Sans cette préparation, des outils comme hostapd pourraient rencontrer des problèmes de routage.
 function prepare_iptables_nftables() {
 
 	debug_print
@@ -7271,6 +7654,8 @@ function prepare_iptables_nftables() {
 }
 
 #Clean only this instance iptables/nftables rules
+# [FR] Supprime uniquement les règles iptables/nftables de CETTE instance d'airgeddon.
+# [FR] Important quand plusieurs instances tournent simultanément pour ne pas interférer.
 function clean_this_instance_iptables_nftables() {
 
 	debug_print
@@ -7289,6 +7674,8 @@ function clean_this_instance_iptables_nftables() {
 }
 
 #Clean all iptables/nftables rules
+# [FR] Supprime TOUTES les règles iptables/nftables d'airgeddon (flush complet).
+# [FR] Appelée uniquement quand c'est la dernière instance qui s'arrête.
 function clean_all_iptables_nftables() {
 
 	debug_print
@@ -7316,6 +7703,8 @@ function clean_all_iptables_nftables() {
 }
 
 #Contains the logic to decide what iptables/nftables rules to clean
+# [FR] Détermine quelles règles pare-feu nettoyer selon le type d'attaque qui vient de se terminer.
+# [FR] Chaque attaque Evil Twin crée des règles différentes (NAT, FORWARD, REDIRECT...) selon sa configuration.
 function clean_initialize_iptables_nftables() {
 
 	debug_print
@@ -7335,6 +7724,7 @@ function clean_initialize_iptables_nftables() {
 }
 
 #Create an array from parameters
+# [FR] Utilitaire : construit un tableau bash à partir des paramètres passés à la fonction.
 function store_array() {
 
 	debug_print
@@ -7346,6 +7736,8 @@ function store_array() {
 }
 
 #Check if something (first parameter) is inside an array (second parameter)
+# [FR] Vérifie si une valeur est présente dans un tableau. Retourne 0 si trouvé, 1 sinon.
+# [FR] Utilisée pour vérifier si une option est dans forbidden_options[] ou si un outil est présent.
 contains_element() {
 
 	debug_print
@@ -7358,6 +7750,8 @@ contains_element() {
 }
 
 #Print hints from the different hint pools depending on the menu
+# [FR] Affiche un conseil/astuce aléatoire adapté au menu actif (DoS, WPS, Evil Twin...).
+# [FR] Les hints éduquent l'utilisateur sur les bonnes pratiques et les fonctionnalités avancées.
 function print_hint() {
 
 	debug_print
@@ -7511,6 +7905,7 @@ function print_hint() {
 }
 
 #Function created empty intentionally to be hooked from plugins to modify hints easily
+# [FR] Fonction vide réservée aux plugins pour ajouter/modifier des hints dans n'importe quel menu.
 function hookable_for_hints() {
 
 	debug_print
@@ -7519,6 +7914,8 @@ function hookable_for_hints() {
 }
 
 #Initialize instances related actions
+# [FR] Initialise le système d'orchestration des instances multiples d'airgeddon.
+# [FR] Permet à plusieurs instances de coexister sans conflits (partage des règles de routage).
 function initialize_instance_settings() {
 
 	debug_print
@@ -7542,6 +7939,8 @@ function initialize_instance_settings() {
 }
 
 #Detect number of the alive airgeddon instances and set the next one if apply
+# [FR] Compte les instances airgeddon actives et détermine le numéro de la prochaine (pour les fichiers d'orchestration).
+# [FR] Utilisé pour éviter les conflits quand plusieurs instances tournent en parallèle.
 function instance_setter() {
 
 	debug_print
@@ -7581,6 +7980,8 @@ function instance_setter() {
 }
 
 #Create orchestrator file if needed
+# [FR] Crée le fichier d'orchestration qui liste toutes les instances actives et leurs PIDs.
+# [FR] Ce fichier permet aux instances de se coordonner pour la gestion du routage et du pare-feu.
 function create_instance_orchestrator_file() {
 
 	debug_print
@@ -7608,6 +8009,7 @@ function create_instance_orchestrator_file() {
 }
 
 #Delete orchestrator file if exists
+# [FR] Supprime le fichier d'orchestration à la fin de toutes les instances (nettoyage final).
 function delete_instance_orchestrator_file() {
 
 	debug_print
@@ -7618,6 +8020,7 @@ function delete_instance_orchestrator_file() {
 }
 
 #Register instance pid into orchestrator file if is not already registered
+# [FR] Enregistre le PID de cette instance dans le fichier d'orchestration (si pas déjà présent).
 function register_instance_pid() {
 
 	debug_print
@@ -7632,6 +8035,7 @@ function register_instance_pid() {
 }
 
 #Detect and return the number of airgeddon running instances
+# [FR] Compte le nombre d'instances airgeddon actuellement actives en lisant le fichier d'orchestration.
 function detect_running_instances() {
 
 	debug_print
@@ -7650,6 +8054,8 @@ function detect_running_instances() {
 }
 
 #Check if this instance is the first one modifying routing state
+# [FR] Vérifie via le fichier orchestrateur si cette instance est la première à modifier le routage.
+# [FR] Permet de décider qui doit nettoyer iptables/nftables en cas d'instances multiples d'airgeddon.
 function is_first_routing_modifier_airgeddon_instance() {
 
 	debug_print
@@ -7670,6 +8076,8 @@ function is_first_routing_modifier_airgeddon_instance() {
 }
 
 #Check if this instance is the last airgeddon instance running
+# [FR] Vérifie si cette instance est la dernière en cours d'exécution via le fichier orchestrateur.
+# [FR] Si c'est la dernière instance, elle est responsable de restaurer le routage réseau original.
 function is_last_airgeddon_instance() {
 
 	debug_print
@@ -7689,6 +8097,9 @@ function is_last_airgeddon_instance() {
 }
 
 #airgeddon main menu
+# [FR] Menu principal d'airgeddon. Affiche les 13 options (sélection interface, monitor/managed,
+# [FR] attaques DoS/handshake/Evil Twin/WPS/WEP/Enterprise/WPA3, déchiffrement, crédits, options).
+# [FR] S'appelle récursivement à la fin de chaque action pour revenir au menu.
 function main_menu() {
 
 	debug_print
@@ -7771,6 +8182,9 @@ function main_menu() {
 }
 
 #Enterprise attacks menu
+# [FR] Menu des attaques WPA/WPA2 Enterprise. Options : création certificats custom, attaques
+# [FR] "smooth" (hostapd-mana) et "noisy" (hostapd-wpe), capture d'identités, analyse certificats.
+# [FR] Requiert des dépendances spécifiques (hostapd-mana, hostapd-wpe, asleap, freeradius-wpe).
 function enterprise_attacks_menu() {
 
 	debug_print
@@ -7929,6 +8343,9 @@ function enterprise_attacks_menu() {
 }
 
 #Evil Twin attacks menu
+# [FR] Menu des attaques Evil Twin (faux point d'accès). Options : AP seul, sniffing SSL/bettercap,
+# [FR] portail captif avec collecte credentials, attaque BeEF, mode WPA3-downgrade.
+# [FR] Crée un faux AP clone de la cible pour intercepter les connexions des clients.
 function evil_twin_attacks_menu() {
 
 	debug_print
@@ -8166,6 +8583,9 @@ function evil_twin_attacks_menu() {
 }
 
 #beef pre attack menu
+# [FR] Menu pré-attaque BeEF (Browser Exploitation Framework). Permet de lancer BeEF manuellement
+# [FR] ou d'exécuter l'attaque Evil Twin avec sniffing SSL + BeEF intégré.
+# [FR] Vérifie que BeEF est trouvé et que les ports requis sont disponibles.
 function beef_pre_menu() {
 
 	debug_print
@@ -8280,6 +8700,9 @@ function beef_pre_menu() {
 }
 
 #WPS attacks menu
+# [FR] Menu des attaques WPS. Propose : scan wash, attaques PIN via bully/reaver (custom PIN,
+# [FR] Pixie Dust, bruteforce, NULL PIN), génération de PIN hors-ligne avec algorithmes connus.
+# [FR] Compatible avec les chipsets RTL8812AU/RTL8811AU (Wlan_Ap et Wlan_Jam).
 function wps_attacks_menu() {
 
 	debug_print
@@ -8519,6 +8942,9 @@ function wps_attacks_menu() {
 }
 
 #Offline pin generation menu
+# [FR] Menu de génération de PIN WPS hors ligne. Calcule les PIN via les algorithmes ComputePIN,
+# [FR] EasyBox et Arcadyan en fonction du BSSID cible. Peut aussi interroger la base known_pins.db.
+# [FR] Aucune interaction radio nécessaire : utilise uniquement l'OUI/MAC de la cible.
 function offline_pin_generation_menu() {
 
 	debug_print
@@ -8706,6 +9132,9 @@ function offline_pin_generation_menu() {
 }
 
 #WEP attacks menu
+# [FR] Menu des attaques WEP. Propose l'attaque "All-in-One" (capture + injection + crack)
+# [FR] et l'attaque "Besside-ng" (automatique). Requiert une interface en mode monitor.
+# [FR] WEP est un protocole obsolète facilement cassable ; utilisé à des fins pédagogiques/audit.
 function wep_attacks_menu() {
 
 	debug_print
@@ -8767,6 +9196,8 @@ function wep_attacks_menu() {
 }
 
 #Offline decryption attacks menu
+# [FR] Menu principal de déchiffrement hors ligne. Propose deux sous-menus :
+# [FR] déchiffrement personnel (WPA/WPA2-Personal : handshake/PMKID) et enterprise (MSCHAPV2).
 function decrypt_menu() {
 
 	debug_print
@@ -8803,6 +9234,9 @@ function decrypt_menu() {
 }
 
 #Offline personal decryption attacks menu
+# [FR] Menu de déchiffrement WPA/WPA2-Personal. Propose : attaque dictionnaire/bruteforce aircrack,
+# [FR] attaque dictionnaire/bruteforce/rules hashcat sur fichier capture (.cap) ou hash (-m 22000).
+# [FR] Les modes hashcat utilisent le GPU pour des performances accrues.
 function personal_decrypt_menu() {
 
 	debug_print
@@ -8909,6 +9343,8 @@ function personal_decrypt_menu() {
 }
 
 #Offline enterprise decryption attacks menu
+# [FR] Menu de déchiffrement Enterprise (MSCHAPV2/PEAP/TTLS). Outils : John the Ripper (dict+brute),
+# [FR] hashcat (dict/brute/rules), asleap (attaque LEAP). Travaille sur les fichiers .mschapv2 capturés.
 function enterprise_decrypt_menu() {
 
 	debug_print
@@ -9008,6 +9444,8 @@ function enterprise_decrypt_menu() {
 }
 
 #Read the user input on rules file questions
+# [FR] Demande à l'utilisateur le chemin vers un fichier de règles hashcat. Boucle jusqu'à
+# [FR] obtenir un chemin valide. Affiche un message de confirmation une fois accepté.
 function ask_rules() {
 
 	debug_print
@@ -9020,6 +9458,8 @@ function ask_rules() {
 }
 
 #Read the user input on dictionary file questions
+# [FR] Demande à l'utilisateur le chemin vers un fichier dictionnaire. Boucle jusqu'à chemin valide.
+# [FR] Affiche un message de confirmation jaune une fois le dictionnaire accepté.
 function ask_dictionary() {
 
 	debug_print
@@ -9032,6 +9472,9 @@ function ask_dictionary() {
 }
 
 #Read the user input on Handshake/PMKID/enterprise file questions
+# [FR] Demande à l'utilisateur le fichier capture/hash selon le type d'attaque :
+# [FR] .cap pour capture personnelle, hash hashcat pour PMKID, fichiers enterprise pour JtR/hashcat.
+# [FR] Boucle jusqu'à obtenir un chemin valide.
 function ask_capture_hash_file() {
 
 	debug_print
@@ -9061,6 +9504,9 @@ function ask_capture_hash_file() {
 }
 
 #Manage the questions on Handshake/PMKID/enterprise file questions
+# [FR] Gère la logique de demande du fichier de capture/hash : si un chemin existe déjà en mémoire,
+# [FR] propose de le réutiliser ; sinon appelle ask_capture_hash_file(). Adapte le comportement
+# [FR] selon le type (personal capture, PMKID hash, enterprise hashcat/JtR).
 function manage_asking_for_captured_hashes_file() {
 
 	debug_print
@@ -9115,6 +9561,8 @@ function manage_asking_for_captured_hashes_file() {
 }
 
 #Manage the questions on challenge response input
+# [FR] Demande le challenge (8 octets hex) et le response (24 octets hex) MSCHAPV2 pour asleap.
+# [FR] Boucle jusqu'à obtenir des valeurs au format hexadécimal correct (XX:XX:... séparés par :).
 manage_asking_for_challenge_response() {
 
 	debug_print
@@ -9133,6 +9581,8 @@ manage_asking_for_challenge_response() {
 }
 
 #Manage the questions on dictionary file questions
+# [FR] Gère la réutilisation du dictionnaire déjà sélectionné : propose de le conserver ou
+# [FR] de choisir un nouveau fichier. Appelle ask_dictionary() si nécessaire.
 function manage_asking_for_dictionary_file() {
 
 	debug_print
@@ -9150,6 +9600,8 @@ function manage_asking_for_dictionary_file() {
 }
 
 #Manage the questions on rules file questions
+# [FR] Gère la réutilisation du fichier de règles hashcat déjà sélectionné : propose de le
+# [FR] conserver ou d'en choisir un nouveau. Appelle ask_rules() si nécessaire.
 function manage_asking_for_rule_file() {
 
 	debug_print
@@ -9167,6 +9619,9 @@ function manage_asking_for_rule_file() {
 }
 
 #Check if a hash is present in hostapd-mana log
+# [FR] Surveille le log hostapd-mana pour détecter la capture d'un handshake WPA/WPA2.
+# [FR] Extrait le hash au format hashcat directement depuis le log (si disponible) ou via hcxtools.
+# [FR] Boucle jusqu'à détection ou fin du processus hostapd-mana.
 function check_mana_hashes() {
 
 	debug_print
@@ -9196,6 +9651,8 @@ function check_mana_hashes() {
 }
 
 #Validate the file to be cleaned
+# [FR] Valide qu'un fichier de capture est un fichier .cap/.pcap valide pouvant être nettoyé.
+# [FR] Vérifie le format avec aircrack-ng et que le BSSID cible est présent dans le fichier.
 function check_valid_file_to_clean() {
 
 	debug_print
@@ -9230,6 +9687,9 @@ function check_valid_file_to_clean() {
 }
 
 #Check if an essid is present on the mdk3/mdk4 log file to know if it is decloaked for that bssid
+# [FR] Analyse le log mdk3/mdk4 pour extraire le SSID décloaké du réseau cible.
+# [FR] Compatible mdk3 (format "SSID:") et mdk4 (format "Probe Response from target AP with SSID").
+# [FR] Retourne 0 si l'ESSID a été trouvé et n'est pas "(Hidden Network)".
 function check_essid_in_mdk_decloak_log() {
 
 	debug_print
@@ -9253,6 +9713,8 @@ function check_essid_in_mdk_decloak_log() {
 }
 
 #Check if an essid is present on a capture file to know if it is decloaked for that bssid
+# [FR] Lit le fichier CSV de capture airodump pour trouver l'ESSID correspondant au BSSID cible.
+# [FR] Nettoie les espaces autour de l'ESSID. Retourne 0 si trouvé, 1 si toujours "(Hidden Network)".
 function check_essid_in_capture_file() {
 
 	debug_print
@@ -9280,6 +9742,9 @@ function check_essid_in_capture_file() {
 }
 
 #Check if enterprise certificates are present on a capture file
+# [FR] Extrait les certificats TLS du fichier de capture via tshark pour les attaques Enterprise.
+# [FR] Convertit les données hex en PEM via openssl. Stocke les certificats dans certificates_array[].
+# [FR] Retourne 0 si au moins un certificat valide est trouvé.
 #shellcheck disable=SC2059
 function check_certificates_in_capture_file() {
 
@@ -9301,6 +9766,8 @@ function check_certificates_in_capture_file() {
 }
 
 #Check if enterprise identities are present on a capture file
+# [FR] Extrait les identités EAP (noms d'utilisateur) du fichier de capture via tshark.
+# [FR] Stocke les résultats uniques dans identities_array[]. Retourne 0 si au moins une identité trouvée.
 function check_identities_in_capture_file() {
 
 	debug_print
@@ -9315,6 +9782,9 @@ function check_identities_in_capture_file() {
 }
 
 #Check if a bssid is present on a capture file to know if there is a Handshake/PMKID with that bssid
+# [FR] Vérifie qu'un fichier .cap contient un handshake WPA ou un PMKID pour le BSSID cible.
+# [FR] Supporte les modes "silent", "showing_msgs_capturing", "showing_msgs_checking".
+# [FR] Retourne 0 si handshake/PMKID trouvé, 1 si absent, 2 si format incompatible (non WPA2).
 function check_bssid_in_captured_file() {
 
 	debug_print
@@ -9450,6 +9920,9 @@ function check_bssid_in_captured_file() {
 }
 
 #Set the target vars to a bssid selecting them from a capture file which has a Handshake/PMKID
+# [FR] Extrait la liste des BSSID avec handshake/PMKID d'un fichier .cap et propose à l'utilisateur
+# [FR] de sélectionner la cible. Si le BSSID courant est trouvé, propose de le réutiliser.
+# [FR] Met à jour bssid, channel, essid pour le déchiffrement hors ligne.
 function select_wpa_bssid_target_from_captured_file() {
 
 	debug_print
@@ -9574,6 +10047,8 @@ function select_wpa_bssid_target_from_captured_file() {
 }
 
 #Validate if given file has a valid enterprise john the ripper format
+# [FR] Vérifie que chaque ligne du fichier Enterprise a le format NETNTLM attendu par John the Ripper.
+# [FR] Format attendu : "user:$NETNTLM$challenge$response". Retourne 1 si une ligne est invalide.
 function validate_enterprise_jtr_file() {
 
 	debug_print
@@ -9595,6 +10070,9 @@ function validate_enterprise_jtr_file() {
 }
 
 # Check if hashcat hash are correct in a file (first line)
+# [FR] Valide le format du fichier de hash hashcat (WPA*XX*...) ou l'ancien format hccapx.
+# [FR] Si le format hccapx déprécié est détecté, propose de le convertir automatiquement en -m 22000.
+# [FR] Retourne 0 si valide (ou converti avec succès), 1 si format incorrect.
 function check_hashcat_hashes_format() {
 
 	debug_print
@@ -9659,6 +10137,8 @@ function check_hashcat_hashes_format() {
 }
 
 #Convert legacy -m 2500 hashcat format into -m 22000 hashcat format
+# [FR] Convertit un fichier hash hccapx (ancien format -m 2500) vers le nouveau format -m 22000.
+# [FR] Utilise hcxhashtool pour extraire la ligne WPA*01* ou WPA*02*. Retourne 1 si échec.
 function convert_legacy_hashcat_hash_to_new() {
 
 	debug_print
@@ -9671,6 +10151,8 @@ function convert_legacy_hashcat_hash_to_new() {
 }
 
 #Validate if given file has a valid enterprise hashcat format
+# [FR] Vérifie que chaque ligne du fichier Enterprise a le format hashcat attendu.
+# [FR] Format attendu : "user::::NT_response:challenge". Retourne 1 si une ligne est invalide.
 function validate_enterprise_hashcat_file() {
 
 	debug_print
@@ -9692,6 +10174,8 @@ function validate_enterprise_hashcat_file() {
 }
 
 #Validate and ask for the different parameters used in an enterprise asleap dictionary based attack
+# [FR] Prépare et lance l'attaque asleap par dictionnaire sur les hashes LEAP Enterprise.
+# [FR] Demande le challenge/response MSCHAPV2 et le fichier dictionnaire, puis exécute asleap.
 function enterprise_asleap_dictionary_attack_option() {
 
 	debug_print
@@ -9710,6 +10194,8 @@ function enterprise_asleap_dictionary_attack_option() {
 }
 
 #Validate and ask for the different parameters used in an aircrack dictionary based attack
+# [FR] Prépare et lance l'attaque aircrack par dictionnaire sur un fichier de capture handshake/PMKID.
+# [FR] Demande le fichier capture, sélectionne le BSSID cible, demande le dictionnaire, puis exécute.
 function aircrack_dictionary_attack_option() {
 
 	debug_print
@@ -9730,6 +10216,8 @@ function aircrack_dictionary_attack_option() {
 }
 
 #Validate and ask for the different parameters used in an aircrack bruteforce based attack
+# [FR] Prépare et lance l'attaque aircrack par bruteforce (crunch) sur un fichier de capture.
+# [FR] Demande longueurs min/max et jeu de caractères, génère les mots de passe via crunch à la volée.
 function aircrack_bruteforce_attack_option() {
 
 	debug_print
@@ -9757,6 +10245,8 @@ function aircrack_bruteforce_attack_option() {
 }
 
 #Validate and ask for the different parameters used in a john the ripper dictionary based attack
+# [FR] Prépare et lance l'attaque John the Ripper par dictionnaire sur des hashes Enterprise.
+# [FR] Valide le format du fichier JtR (NETNTLM), demande le dictionnaire, puis exécute JtR.
 function enterprise_jtr_dictionary_attack_option() {
 
 	debug_print
@@ -9777,6 +10267,8 @@ function enterprise_jtr_dictionary_attack_option() {
 }
 
 #Validate and ask for the different parameters used in a john the ripper bruteforce based attack
+# [FR] Prépare et lance l'attaque JtR par bruteforce (incremental) sur des hashes Enterprise.
+# [FR] Demande longueurs min/max et jeu de caractères, puis exécute John the Ripper en mode incrémental.
 function enterprise_jtr_bruteforce_attack_option() {
 
 	debug_print
@@ -9804,6 +10296,9 @@ function enterprise_jtr_bruteforce_attack_option() {
 }
 
 #Validate and ask for the different parameters used in a hashcat dictionary based attack over capture file
+# [FR] Prépare et lance l'attaque hashcat par dictionnaire (-a 0). Gère trois modes :
+# [FR] capture personnelle (converti en -m 22000), hash hashcat direct, et Enterprise (MSCHAPV2).
+# [FR] Vérifie la compatibilité hashcat/PMKID avant d'exécuter.
 function hashcat_dictionary_attack_option() {
 
 	debug_print
@@ -9851,6 +10346,8 @@ function hashcat_dictionary_attack_option() {
 }
 
 #Validate and ask for the different parameters used in a hashcat bruteforce based attack
+# [FR] Prépare et lance l'attaque hashcat par bruteforce (-a 3 avec masque crunch).
+# [FR] Demande longueurs min/max et jeu de caractères. Fonctionne sur capture, hash ou Enterprise.
 function hashcat_bruteforce_attack_option() {
 
 	debug_print
@@ -9905,6 +10402,8 @@ function hashcat_bruteforce_attack_option() {
 }
 
 #Validate and ask for the different parameters used in a hashcat rule based attack
+# [FR] Prépare et lance l'attaque hashcat basée sur des règles (-a 0 avec fichier .rule).
+# [FR] Combine un dictionnaire et un fichier de règles de transformation (ex: best64.rule).
 function hashcat_rulebased_attack_option() {
 
 	debug_print
@@ -9953,6 +10452,9 @@ function hashcat_rulebased_attack_option() {
 }
 
 #Check if the password was decrypted using hashcat and manage to save it on a file
+# [FR] Vérifie si hashcat a trouvé le mot de passe (status "Cracked" dans la sortie).
+# [FR] Si oui, propose de sauvegarder le mot de passe déchiffré dans un fichier .txt.
+# [FR] Gère les cas personal (BSSID dans le nom) et enterprise (plusieurs utilisateurs possible).
 function manage_hashcat_pot() {
 
 	debug_print
@@ -10078,6 +10580,8 @@ function manage_hashcat_pot() {
 }
 
 #Check if the password was decrypted using john the ripper and manage to save it on a file
+# [FR] Vérifie si John the Ripper a trouvé le mot de passe (format $NETNTLM$ dans le pot file).
+# [FR] Si oui, propose de sauvegarder le résultat. Gère le cas multi-utilisateurs (plusieurs hashes).
 function manage_jtr_pot() {
 
 	debug_print
@@ -10171,6 +10675,7 @@ function manage_jtr_pot() {
 }
 
 #Check if the password was decrypted using aircrack and manage to save it on a file
+# [FR] Surveille le résultat d'aircrack-ng et, si un mot de passe est trouvé, le sauvegarde dans un fichier trophée.
 function manage_aircrack_pot() {
 
 	debug_print
@@ -10218,6 +10723,8 @@ function manage_aircrack_pot() {
 }
 
 #Check if hashes were captured during WPA3 downgrade attack
+# [FR] Vérifie si des hashes WPA2 ont été capturés lors d'une attaque downgrade WPA3→WPA2.
+# [FR] Ces hashes peuvent ensuite être craqués hors ligne avec hashcat/aircrack.
 function manage_mana_pot() {
 
 	debug_print
@@ -10253,6 +10760,8 @@ function manage_mana_pot() {
 }
 
 #Check if the password was decrypted using asleap against challenges and responses
+# [FR] Vérifie si asleap a réussi à casser le hash MSCHAP (challenge/response capturé en Enterprise).
+# [FR] asleap utilise une attaque par dictionnaire sur les échanges MSCHAP-v2.
 function manage_asleap_pot() {
 
 	debug_print
@@ -10344,6 +10853,7 @@ function manage_asleap_pot() {
 }
 
 #Check if the wep besside password was captured and manage to save it on a file
+# [FR] Vérifie si besside-ng a trouvé la clé WEP et la sauvegarde dans le fichier trophée.
 function manage_wep_besside_pot() {
 
 	debug_print
@@ -10393,6 +10903,7 @@ function manage_wep_besside_pot() {
 }
 
 #Check if the passwords were captured using ettercap and manage to save them on a file
+# [FR] Vérifie si ettercap a capturé des identifiants (HTTP, FTP, etc.) lors d'un sniffing Evil Twin.
 function manage_ettercap_log() {
 
 	debug_print
@@ -10414,6 +10925,7 @@ function manage_ettercap_log() {
 }
 
 #Check if the passwords were captured using bettercap and manage to save them on a file
+# [FR] Vérifie si bettercap (sslstrip2/HSTS bypass) a intercepté des credentials lors d'un Evil Twin.
 function manage_bettercap_log() {
 
 	debug_print
@@ -10435,6 +10947,7 @@ function manage_bettercap_log() {
 }
 
 #Check if the passwords were captured using wps attacks and manage to save them on a file
+# [FR] Vérifie si une attaque WPS (reaver/bully) a obtenu le PIN et la clé PSK du routeur.
 function manage_wps_log() {
 
 	debug_print
@@ -10455,6 +10968,7 @@ function manage_wps_log() {
 }
 
 #Check if the password was captured using wep all-in-one or besside-ng attack and manage to save it on a file
+# [FR] Vérifie si une attaque WEP (all-in-one ou besside-ng) a trouvé la clé WEP et la sauvegarde.
 function manage_wep_log() {
 
 	debug_print
@@ -10470,6 +10984,7 @@ function manage_wep_log() {
 }
 
 #Check if a hash or a password was captured using Evil Twin Enterprise attack and manage to save it on a directory
+# [FR] Vérifie et sauvegarde les captures Enterprise (hashes MSCHAP, certificats, identités) dans un répertoire trophée.
 function manage_enterprise_log() {
 
 	debug_print
@@ -10485,6 +11000,7 @@ function manage_enterprise_log() {
 }
 
 #Check to save certs for Evil Twin Enterprise attack
+# [FR] Vérifie et sauvegarde les certificats capturés lors d'une attaque Enterprise (hostapd-mana/wpe).
 function manage_enterprise_certs() {
 
 	debug_print
@@ -10500,6 +11016,7 @@ function manage_enterprise_certs() {
 }
 
 #Save created cert files to user's location
+# [FR] Copie les fichiers de certificats générés vers l'emplacement de sauvegarde choisi par l'utilisateur.
 function save_enterprise_certs() {
 
 	debug_print
@@ -10518,6 +11035,7 @@ function save_enterprise_certs() {
 }
 
 #Check if the passwords were captured using the captive portal Evil Twin attack and manage to save them on a file
+# [FR] Vérifie si le portail captif a capturé des mots de passe Wi-Fi saisis par les victimes.
 function manage_captive_portal_log() {
 
 	debug_print
@@ -10532,6 +11050,7 @@ function manage_captive_portal_log() {
 }
 
 #Handle enterprise log captures
+# [FR] Gère l'analyse des logs générés par hostapd-mana ou hostapd-wpe lors d'une attaque Enterprise.
 function handle_enterprise_log() {
 
 	debug_print
@@ -10562,6 +11081,7 @@ function handle_enterprise_log() {
 }
 
 #Parse enterprise log to create trophy files
+# [FR] Parse le log d'attaque Enterprise pour extraire et organiser les captures (hashes, identités, certificats).
 function parse_from_enterprise() {
 
 	debug_print
@@ -10623,6 +11143,7 @@ function parse_from_enterprise() {
 }
 
 #Prepare dir for enterprise trophy files
+# [FR] Crée le répertoire de destination pour les fichiers trophées Enterprise (hashes, identités).
 function prepare_enterprise_trophy_dir() {
 
 	debug_print
@@ -10633,6 +11154,7 @@ function prepare_enterprise_trophy_dir() {
 }
 
 #Write enterprise captured hashes to trophy file
+# [FR] Écrit les hashes MSCHAP capturés dans un fichier trophée (format compatible john/hashcat).
 function write_enterprise_hashes_file() {
 
 	debug_print
@@ -10648,6 +11170,7 @@ function write_enterprise_hashes_file() {
 }
 
 #Write enterprise captured passwords to trophy file
+# [FR] Écrit les mots de passe Enterprise déchiffrés dans le fichier trophée final.
 function write_enterprise_passwords_file() {
 
 	debug_print
@@ -10677,6 +11200,8 @@ function write_enterprise_passwords_file() {
 }
 
 #Captive portal language menu
+# [FR] Sélectionne la langue du portail captif affiché aux victimes (FR, EN, ES, etc.).
+# [FR] Le portail demande le mot de passe Wi-Fi sous prétexte d'une "mise à jour du routeur".
 function set_captive_portal_language() {
 
 	debug_print
@@ -10761,6 +11286,7 @@ function set_captive_portal_language() {
 }
 
 #Read and validate the minlength var
+# [FR] Lit et valide la longueur minimale du mot de passe pour les attaques bruteforce (crunch/hashcat).
 function set_minlength() {
 
 	debug_print
@@ -10786,6 +11312,7 @@ function set_minlength() {
 }
 
 #Read and validate the maxlength var
+# [FR] Lit et valide la longueur maximale du mot de passe pour les attaques bruteforce.
 function set_maxlength() {
 
 	debug_print
@@ -10808,6 +11335,7 @@ function set_maxlength() {
 }
 
 #Manage the minlength and maxlength vars on bruteforce attacks
+# [FR] Orchestre la saisie et la validation des longueurs min/max pour le bruteforce (min doit être <= max).
 function set_minlength_and_maxlength() {
 
 	debug_print
@@ -10820,6 +11348,8 @@ function set_minlength_and_maxlength() {
 }
 
 #Charset selection menu
+# [FR] Menu de sélection du jeu de caractères pour le bruteforce (chiffres, minuscules, majuscules, symboles, combinaisons).
+# [FR] Chaque choix génère le charset crunch/hashcat correspondant.
 function set_charset() {
 
 	debug_print
@@ -10936,6 +11466,7 @@ function set_charset() {
 }
 
 #Set a var to show the chosen charset
+# [FR] Convertit le code charset interne en texte lisible pour l'affichage dans les menus.
 function set_show_charset() {
 
 	debug_print
@@ -10985,6 +11516,8 @@ function set_show_charset() {
 }
 
 #Execute aircrack+crunch bruteforce attack
+# [FR] Lance un bruteforce WPA/WPA2 combinant crunch (générateur de mots de passe) et aircrack-ng.
+# [FR] crunch génère les mots de passe à la volée (pipe) sans les écrire sur disque → gain d'espace.
 function exec_aircrack_bruteforce_attack() {
 
 	debug_print
@@ -10995,6 +11528,7 @@ function exec_aircrack_bruteforce_attack() {
 }
 
 #Execute aircrack dictionary attack
+# [FR] Lance une attaque par dictionnaire WPA/WPA2 avec aircrack-ng sur le fichier handshake capturé.
 function exec_aircrack_dictionary_attack() {
 
 	debug_print
@@ -11006,6 +11540,7 @@ function exec_aircrack_dictionary_attack() {
 }
 
 #Execute john the ripper dictionary attack
+# [FR] Lance une attaque par dictionnaire avec john the ripper (format hccapx ou WPA-PMK).
 function exec_jtr_dictionary_attack() {
 
 	debug_print
@@ -11018,6 +11553,7 @@ function exec_jtr_dictionary_attack() {
 }
 
 #Execute john the ripper bruteforce attack
+# [FR] Lance un bruteforce WPA avec john the ripper en utilisant les règles et charset sélectionnés.
 function exec_jtr_bruteforce_attack() {
 
 	debug_print
@@ -11030,6 +11566,8 @@ function exec_jtr_bruteforce_attack() {
 }
 
 #Execute hashcat dictionary attack
+# [FR] Lance une attaque par dictionnaire avec hashcat (-m 22000 pour WPA2, GPU-accéléré si disponible).
+# [FR] Hashcat est beaucoup plus rapide qu'aircrack sur GPU (RTX 3080 = ~1M hash/s WPA2).
 function exec_hashcat_dictionary_attack() {
 
 	debug_print
@@ -11047,6 +11585,7 @@ function exec_hashcat_dictionary_attack() {
 }
 
 #Execute hashcat bruteforce attack
+# [FR] Lance un bruteforce WPA2 avec hashcat (-a 3 = mask attack) avec le charset sélectionné.
 function exec_hashcat_bruteforce_attack() {
 
 	debug_print
@@ -11064,6 +11603,8 @@ function exec_hashcat_bruteforce_attack() {
 }
 
 #Execute hashcat rule based attack
+# [FR] Lance une attaque hashcat par règles (-a 0 + -r rules) : applique des transformations au dictionnaire.
+# [FR] Ex: mot de passe "password" → "P@ssw0rd" via des règles de mutation (leet speak, capitalize...).
 function exec_hashcat_rulebased_attack() {
 
 	debug_print
@@ -11081,6 +11622,9 @@ function exec_hashcat_rulebased_attack() {
 }
 
 #Execute WPA3 downgrade attack
+# [FR] Lance l'attaque de downgrade WPA3 → WPA2 : force les clients à se connecter en WPA2
+# [FR] en envoyant des trames de déauthentification (via interface monitor sur RTL8812AU).
+# [FR] Capture ensuite le handshake WPA2 pour le déchiffrement hors ligne.
 function exec_wpa3_downgrade_attack() {
 
 	debug_print
@@ -11096,6 +11640,9 @@ function exec_wpa3_downgrade_attack() {
 }
 
 #Execute Enterprise smooth/noisy attack
+# [FR] Lance l'attaque Evil Twin Enterprise (smooth = discret / noisy = bruyant).
+# [FR] Déploie un AP 802.1X factice avec hostapd-mana ou hostapd-wpe pour capturer les credentials RADIUS.
+# [FR] Smooth: cible un SSID précis | Noisy: répond à tous les probe request.
 function exec_enterprise_attack() {
 
 	debug_print
@@ -11163,6 +11710,8 @@ function exec_enterprise_attack() {
 }
 
 #Manage and handle asleap attack integrated on Evil Twin and Enterprise
+# [FR] Intègre l'attaque asleap directement dans le flux Evil Twin/Enterprise.
+# [FR] Démarre asleap en arrière-plan dès qu'un challenge MSCHAP est capturé par hostapd-mana.
 function handle_asleap_attack() {
 
 	debug_print
@@ -11203,6 +11752,7 @@ function handle_asleap_attack() {
 }
 
 #Menu for captured enterprise user selection
+# [FR] Menu de sélection de l'identité Enterprise capturée pour lancer asleap dessus.
 function select_captured_enterprise_user() {
 
 	debug_print
@@ -11238,6 +11788,7 @@ function select_captured_enterprise_user() {
 }
 
 #Execute asleap attack
+# [FR] Lance asleap sur le challenge/response MSCHAP capturé avec le dictionnaire sélectionné.
 function exec_asleap_attack() {
 
 	debug_print
@@ -11252,6 +11803,8 @@ function exec_asleap_attack() {
 }
 
 #Execute Evil Twin only Access Point attack
+# [FR] Lance un AP Evil Twin simple (sans sniffing ni portail captif).
+# [FR] Utile pour forcer les clients à se connecter à l'AP factice puis capturer le trafic manuellement.
 function exec_et_onlyap_attack() {
 
 	debug_print
@@ -11282,6 +11835,8 @@ function exec_et_onlyap_attack() {
 }
 
 #Execute Evil Twin with sniffing attack
+# [FR] Lance un AP Evil Twin avec sniffing passif via ettercap.
+# [FR] Capture tout le trafic non-chiffré des clients connectés (HTTP, FTP, SMTP, etc.).
 function exec_et_sniffing_attack() {
 
 	debug_print
@@ -11316,6 +11871,8 @@ function exec_et_sniffing_attack() {
 }
 
 #Execute Evil Twin with sniffing+bettercap-sslstrip2 attack
+# [FR] Evil Twin + bettercap avec sslstrip2 pour contourner HTTPS en downgradant vers HTTP.
+# [FR] bettercap intercepte les requêtes HTTPS et les redirige en HTTP pour capturer les identifiants.
 function exec_et_sniffing_sslstrip2_attack() {
 
 	debug_print
@@ -11350,6 +11907,8 @@ function exec_et_sniffing_sslstrip2_attack() {
 }
 
 #Execute Evil Twin with sniffing+bettercap-sslstrip2/beef attack
+# [FR] Evil Twin + bettercap-sslstrip2 + BeEF (Browser Exploitation Framework).
+# [FR] BeEF hook les navigateurs des victimes pour des attaques côté client plus avancées.
 function exec_et_sniffing_sslstrip2_beef_attack() {
 
 	debug_print
@@ -11393,6 +11952,9 @@ function exec_et_sniffing_sslstrip2_beef_attack() {
 }
 
 #Execute captive portal Evil Twin attack
+# [FR] Lance l'attaque Evil Twin complète avec portail captif.
+# [FR] Déploie un AP factice + DHCP + DNS + portail web (lighttpd) demandant le mot de passe Wi-Fi.
+# [FR] Le mot de passe saisi est vérifié contre le handshake capturé (aircrack-ng) pour validation.
 function exec_et_captive_portal_attack() {
 
 	debug_print
@@ -11430,6 +11992,8 @@ function exec_et_captive_portal_attack() {
 }
 
 #Create configuration files for bettercap
+# [FR] Génère les fichiers de configuration bettercap (caplets, scripts) pour le mode sslstrip2.
+# [FR] Configure les hooks bettercap pour intercepter HTTPS et injecter BeEF si nécessaire.
 function set_bettercap_config() {
 
 	debug_print
@@ -11482,6 +12046,8 @@ function set_bettercap_config() {
 }
 
 #Create configuration file for hostapd-mana
+# [FR] Génère le fichier de configuration hostapd-mana pour l'AP Enterprise Evil Twin.
+# [FR] hostapd-mana accepte n'importe quel credential RADIUS et les logue pour analyse.
 function set_hostapd_mana_config() {
 
 	debug_print
@@ -11536,6 +12102,9 @@ function set_hostapd_mana_config() {
 }
 
 #Create configuration file for hostapd
+# [FR] Génère le fichier de configuration hostapd pour l'AP Evil Twin (mode open, sans chiffrement).
+# [FR] Utilise un BSSID/ESSID légèrement modifié pour ne pas entrer en conflit avec la vraie cible.
+# [FR] Adapte hw_mode (a/g), 802.11n/ac/ax/be selon les standards détectés sur l'interface.
 function set_hostapd_config() {
 
 	debug_print
@@ -11601,6 +12170,9 @@ function set_hostapd_config() {
 }
 
 #Create configuration file for hostapd
+# [FR] Génère le fichier de configuration hostapd-wpe pour l'attaque Enterprise "noisy" (WPE).
+# [FR] Configure WPA2-Enterprise avec EAP/PEAP/TTLS pour capturer les hashes MSCHAPV2.
+# [FR] Diffère de hostapd-mana : moins furtif mais plus compatible avec les anciens clients.
 function set_hostapd_wpe_config() {
 
 	debug_print
@@ -11685,6 +12257,8 @@ function set_hostapd_wpe_config() {
 }
 
 #Switch a digit from an original given bssid
+# [FR] Modifie légèrement le BSSID de l'AP Evil Twin pour le rendre différent du vrai AP.
+# [FR] Évite les conflits d'adresse MAC quand les deux AP (réel et factice) sont dans la même zone.
 function generate_fake_bssid() {
 
 	debug_print
@@ -11703,6 +12277,8 @@ function generate_fake_bssid() {
 }
 
 #Add an invisible char (Zero Width Space - ZWSP) to the original given essid
+# [FR] Ajoute un espace de largeur nulle (U+200B) à l'ESSID de l'AP factice pour le différencier visuellement.
+# [FR] L'ESSID apparaît identique à l'original pour l'utilisateur mais est techniquement différent.
 function generate_fake_essid() {
 
 	debug_print
@@ -11718,6 +12294,8 @@ function generate_fake_essid() {
 }
 
 #Launch hostapd-mana fake Access Point
+# [FR] Démarre hostapd-mana dans une fenêtre xterm séparée pour l'AP Enterprise Evil Twin.
+# [FR] hostapd-mana capture les authentifications 802.1X (MSCHAP, EAP-PEAP, EAP-TTLS).
 function launch_fake_mana_ap() {
 
 	debug_print
@@ -11743,6 +12321,8 @@ function launch_fake_mana_ap() {
 }
 
 #Launch hostapd and hostapd-wpe fake Access Point
+# [FR] Démarre hostapd standard + hostapd-wpe (Wireless Pwnage Edition) pour l'AP Enterprise.
+# [FR] hostapd-wpe capture les credentials EAP de façon plus discrète que hostapd-mana.
 function launch_fake_ap() {
 
 	debug_print
@@ -11805,6 +12385,8 @@ function launch_fake_ap() {
 }
 
 #Set network data parameters
+# [FR] Configure les paramètres réseau de l'AP Evil Twin : plage IP, masque, passerelle, DHCP.
+# [FR] Ex: 192.168.1.1/24 comme passerelle de l'AP factice pour que les clients obtiennent une IP.
 function set_network_interface_data() {
 
 	debug_print
@@ -11842,6 +12424,8 @@ function set_network_interface_data() {
 }
 
 #Create configuration file for dhcpd
+# [FR] Génère le fichier dhcpd.conf pour le serveur DHCP de l'AP Evil Twin.
+# [FR] Configure la plage IP, la passerelle et le serveur DNS (redirigé vers l'interface pour le portail captif).
 function set_dhcp_config() {
 
 	debug_print
@@ -11908,6 +12492,8 @@ function set_dhcp_config() {
 }
 
 #Change MAC address of desired interface
+# [FR] Change l'adresse MAC d'une interface pour le MAC spoofing lors d'une attaque Evil Twin.
+# [FR] Permet d'imiter exactement le BSSID du vrai AP pour maximiser la crédibilité de l'AP factice.
 function set_spoofed_mac() {
 
 	debug_print
@@ -11932,6 +12518,8 @@ function set_spoofed_mac() {
 }
 
 #Restore spoofed MAC addresses to original values
+# [FR] Restaure les adresses MAC originales de toutes les interfaces dont la MAC a été spoofée.
+# [FR] Utilise le tableau associatif original_macs[] pour trouver et restaurer chaque interface.
 function restore_spoofed_macs() {
 
 	debug_print
@@ -11944,6 +12532,9 @@ function restore_spoofed_macs() {
 }
 
 #Set routing state and firewall rules for Evil Twin attacks
+# [FR] Configure le routage IP et les règles iptables/nftables pour les attaques Evil Twin.
+# [FR] Active ip_forward, configure NAT/MASQUERADE vers internet_interface.
+# [FR] Les règles varient selon le mode : captive_portal, sniffing, sslstrip2, beef, etc.
 function set_std_internet_routing_rules() {
 
 	debug_print
@@ -12016,6 +12607,9 @@ function set_std_internet_routing_rules() {
 }
 
 #Launch dhcpd server
+# [FR] Lance le serveur DHCP (dhcpd) dans une fenêtre xterm/tmux pour l'AP Evil Twin.
+# [FR] Positionne la fenêtre selon le mode ET (onlyap, sniffing, captive_portal, sslstrip2).
+# [FR] Le serveur DHCP attribue des IPs aux clients qui se connectent au faux AP.
 function launch_dhcp_server() {
 
 	debug_print
@@ -12047,6 +12641,8 @@ function launch_dhcp_server() {
 }
 
 #Execute DoS for Evil Twin and Enterprise attacks
+# [FR] Lance l'attaque DoS (mdk3/4, aireplay, Auth DoS) pour déconnecter les clients du vrai AP
+# [FR] et les forcer à se connecter au faux AP (Evil Twin). Si DoS Pursuit Mode actif, suit le canal.
 function exec_et_deauth() {
 
 	debug_print
@@ -12105,6 +12701,8 @@ function exec_et_deauth() {
 }
 
 #Execute DoS for WPA3 downgrade attack
+# [FR] Lance le DoS pour forcer la déauthentification dans le contexte de l'attaque WPA3 downgrade.
+# [FR] Prépare l'interface monitor dédiée au downgrade, puis lance mdk/aireplay/Auth DoS.
 function exec_wpa3_downgrade_deauth() {
 
 	debug_print
@@ -12139,6 +12737,9 @@ function exec_wpa3_downgrade_deauth() {
 }
 
 #Create here-doc bash script used for wps pin attacks
+# [FR] Génère le script heredoc pour les attaques WPS (bully ou reaver). Supporte les modes :
+# [FR] pindb (base de données), custompin (PIN manuel), pixiedust, bruteforce, nullpin.
+# [FR] Le script est écrit dans un fichier temporaire puis exécuté dans une fenêtre xterm/tmux.
 function set_wps_attack_script() {
 
 	debug_print
@@ -12408,12 +13009,12 @@ function set_wps_attack_script() {
 		this_pin_timeout=0
 		case \${script_wps_attack_mode} in
 			"pindb")
+				bad_attack_this_pin_counter=0
 				for current_pin in "\${script_pins_found[@]}"; do
 					possible_bully_timeout=0
 					if [ "\${attack_pin_counter}" -ne 1 ]; then
 						sleep 1.5
 					fi
-					bad_attack_this_pin_counter=0
 					if [ "\${this_pin_timeout}" -eq 1 ]; then
 						print_timeout
 					fi
@@ -12439,26 +13040,39 @@ function set_wps_attack_script() {
 					attack_pin_counter=\$((attack_pin_counter + 1))
 					parse_output
 					output="\$?"
+					if [ "\${script_wps_attack_tool}" = "bully" ]; then
+						if grep -q "\[!\].*WPS lock" "${tmpdir}${wps_out_file}" 2>/dev/null; then
+							echo -e "${red_color}[!] WPS lockout detected - AP is blocking WPS attempts${normal_color}"
+						fi
+					fi
 					if [ "\${output}" = "0" ]; then
 						break
 					elif [ "\${output}" = "1" ]; then
+						echo -e "${red_color}[-] PIN \${current_pin}: WPSFail (AP rejected the PIN)${normal_color}"
 						this_pin_timeout=1
+						bad_attack_this_pin_counter=0
 						continue
 					elif [ "\${output}" = "2" ]; then
+						echo -e "${red_color}[-] PIN \${current_pin}: PinBad (wrong PIN, AP responded)${normal_color}"
+						bad_attack_this_pin_counter=0
 						continue
 					elif [[ "\${output}" = "3" ]] || [[ "\${this_pin_timeout}" -eq 1 ]] || [[ "\${possible_bully_timeout}" -eq 1 ]]; then
 						if [ "\${this_pin_timeout}" -eq 1 ]; then
+							echo -e "${red_color}[-] PIN \${current_pin}: Timeout (no response from AP)${normal_color}"
 							continue
 						fi
 						bad_attack_this_pin_counter=\$((bad_attack_this_pin_counter + 1))
 						if [ "\${bad_attack_this_pin_counter}" -eq 3 ]; then
+							echo -e "${red_color}[!] 3 consecutive no-response - treating as timeout${normal_color}"
 							this_pin_timeout=1
 							continue
 						fi
 						if [ "\${possible_bully_timeout}" -eq 1 ]; then
+							echo -e "${red_color}[-] PIN \${current_pin}: Bully timeout (30s limit reached)${normal_color}"
 							this_pin_timeout=1
 							continue
 						fi
+						echo -e "${red_color}[?] PIN \${current_pin}: No parseable output${normal_color}"
 					fi
 				done
 			;;
@@ -12555,8 +13169,8 @@ function set_wps_attack_script() {
 		fi
 
 		echo
-		echo -e "${white_color}Close this window"
-		read -r -d '' _ </dev/tty
+		echo -e "${white_color}Press ENTER to close this window${normal_color}"
+		read -r _ </dev/tty 2>/dev/null || sleep 10
 	EOF
 
 	exec 7>&-
@@ -12564,6 +13178,8 @@ function set_wps_attack_script() {
 }
 
 #Create here-doc bash script used for control windows on Enterprise attacks
+# [FR] Génère le script de contrôle pour les attaques Enterprise (hostapd-mana "smooth" ou wpe "noisy").
+# [FR] Ce script surveille la capture des hashes MSCHAPV2 et restaure l'interface à la fin de l'attaque.
 function set_enterprise_control_script() {
 
 	debug_print
@@ -12595,21 +13211,26 @@ function set_enterprise_control_script() {
 		log_reminder_msg="${pink_color}${enterprise_texts[${language},10]}: [${normal_color}${enterprise_completepath}${pink_color}]${normal_color}"
 
 		#Restore interface to its original state
+		# [FR] Restaure l'interface à son état d'origine (managed ou monitor) après une attaque Enterprise.
+		# [FR] Si airmon n'est pas compatible (chipsets RTL8812AU/RTL8811AU), utilise iw directement.
 		function restore_interface() {
 
 			if hash rfkill 2> /dev/null; then
 				rfkill unblock all > /dev/null 2>&1
 			fi
 
+			# [FR] Supprime l'interface virtuelle de déauthentification si elle existe
 			iw dev "\${iface_monitor_et_deauth}" del > /dev/null 2>&1
 
 			if [ "\${et_initial_state}" = "Managed" ]; then
+				# [FR] Retour en mode managed si c'était l'état initial
 				ip link set "\${interface}" down > /dev/null 2>&1
 				iw "\${interface}" set type managed > /dev/null 2>&1
 				ip link set "\${interface}" up > /dev/null 2>&1
 				ifacemode="Managed"
 			else
 				if [ "\${interface_airmon_compatible}" -eq 1 ]; then
+					# [FR] airmon-ng compatible : utilisation d'airmon pour repasser en monitor
 					new_interface=\$(\${airmon} start "\${interface}" 2> /dev/null | grep monitor)
 
 					[[ \${new_interface} =~ \]?([A-Za-z0-9]+)\)?$ ]] && new_interface="\${BASH_REMATCH[1]}"
@@ -12619,8 +13240,11 @@ function set_enterprise_control_script() {
 						current_iface_on_messages="\${interface}"
 					fi
 				else
+					# [FR] CORRECTION: Utilisation de "set type monitor" pour changer le TYPE de l'interface.
+					# [FR] "set monitor control" ne configure que les FLAGS d'une interface déjà en monitor
+					# [FR] et échoue si l'interface est en mode managed (RTL8812AU/RTL8811AU).
 					ip link set "\${interface}" down > /dev/null 2>&1
-					iw "\${interface}" set monitor control > /dev/null 2>&1
+					iw "\${interface}" set type monitor > /dev/null 2>&1
 					ip link set "\${interface}" up > /dev/null 2>&1
 				fi
 				ifacemode="Monitor"
@@ -12825,6 +13449,8 @@ function set_enterprise_control_script() {
 }
 
 #Create here-doc bash script used for control windows on Evil Twin attacks
+# [FR] Génère le script heredoc de contrôle pour la fenêtre Evil Twin (capture credentials portail captif).
+# [FR] Surveille les connexions clients, affiche les credentials capturés, gère la fin de l'attaque.
 function set_et_control_script() {
 
 	debug_print
@@ -13101,6 +13727,8 @@ function set_et_control_script() {
 }
 
 #Launch dnsmasq dns black hole for captive portal Evil Twin attack
+# [FR] Configure et lance dnsmasq en mode "trou noir DNS" : toutes les requêtes DNS sont redirigées
+# [FR] vers l'IP du routeur Evil Twin (portail captif). Exclut Google/gstatic pour éviter le ping.
 function launch_dns_blackhole() {
 
 	debug_print
@@ -13135,6 +13763,8 @@ function launch_dns_blackhole() {
 }
 
 #Launch control window for Enterprise attacks
+# [FR] Lance la fenêtre de contrôle Enterprise dans xterm/tmux (affiche statut de la capture).
+# [FR] Cette fenêtre exécute le script control_enterprise_file généré par set_enterprise_control_script().
 function launch_enterprise_control_window() {
 
 	debug_print
@@ -13151,6 +13781,8 @@ function launch_enterprise_control_window() {
 }
 
 #Launch control window for Evil Twin attacks
+# [FR] Lance la fenêtre de contrôle Evil Twin (affiche clients connectés, credentials capturés).
+# [FR] Positionne la fenêtre selon le mode ET (onlyap, sniffing, captive_portal, sslstrip2, beef).
 function launch_et_control_window() {
 
 	debug_print
@@ -13184,6 +13816,8 @@ function launch_et_control_window() {
 }
 
 #Create configuration file for lighttpd
+# [FR] Génère la configuration lighttpd pour le portail captif : document-root, CGI bash/php,
+# [FR] redirection HTTP 302, log des accès, binding sur l'IP du faux AP (et_ip_router:www_port).
 function set_webserver_config() {
 
 	debug_print
@@ -13231,6 +13865,9 @@ function set_webserver_config() {
 }
 
 #Prepare captive portal data based on vendor if apply
+# [FR] Détermine le modèle de portail captif à utiliser selon le fabricant du routeur cible (OUI/BSSID).
+# [FR] Pour les fabricants connus (Arris, Netgear, etc.), affiche un portail personnalisé similaire.
+# [FR] Les portails personnalisés sont dans le dossier captive_portals/ du script.
 function prepare_captive_portal_data() {
 
 	debug_print
@@ -13350,6 +13987,9 @@ function prepare_captive_portal_data() {
 }
 
 #Create captive portal files. CGI bash scripts, CSS and JS file
+# [FR] Génère les fichiers du portail captif : page HTML/CGI bash, CSS, JavaScript, pixel de tracking.
+# [FR] Le script CGI capture les credentials (SSID/password) soumis par les clients via le formulaire.
+# [FR] Adapte la langue du portail selon le paramètre captive_portal_language.
 function set_captive_portal_page() {
 
 	debug_print
@@ -13535,6 +14175,8 @@ function set_captive_portal_page() {
 }
 
 #Launch lighttpd webserver for captive portal Evil Twin attack
+# [FR] Lance le serveur web lighttpd avec la configuration du portail captif dans une fenêtre dédiée.
+# [FR] Sert les pages HTML/CGI du faux portail captif aux clients connectés au faux AP.
 function launch_webserver() {
 
 	debug_print
@@ -13552,6 +14194,8 @@ function launch_webserver() {
 }
 
 #Launch ettercap sniffer
+# [FR] Lance ettercap en mode sniffing réseau sur l'interface Evil Twin pour intercepter le trafic.
+# [FR] Utilisé dans le mode et_sniffing (ARP poisoning + capture des sessions non chiffrées).
 function launch_ettercap_sniffing() {
 
 	debug_print
@@ -13578,6 +14222,8 @@ function launch_ettercap_sniffing() {
 }
 
 #Create configuration file for beef
+# [FR] Configure BeEF (Browser Exploitation Framework) : adapte le port, l'IP et le hook JS.
+# [FR] Réécrit la configuration YAML de BeEF pour l'intégrer à l'attaque Evil Twin sslstrip2+beef.
 function set_beef_config() {
 
 	debug_print
@@ -13682,6 +14328,8 @@ function set_beef_config() {
 }
 
 #Detects if your beef is Flexible Brainfuck interpreter instead of BeEF
+# [FR] Vérifie que l'exécutable "beef" est bien BeEF (Browser Exploitation Framework) et non
+# [FR] l'interpréteur Brainfuck (aussi nommé "beef"). Évite les faux positifs de détection.
 function detect_fake_beef() {
 
 	debug_print
@@ -13697,6 +14345,8 @@ function detect_fake_beef() {
 }
 
 #Search for beef path
+# [FR] Cherche l'exécutable BeEF dans les chemins courants et dans le tableau beef_path_hints[].
+# [FR] Stocke le chemin trouvé dans beef_exec_path. Marque beef_found=1 si trouvé et valide.
 function search_for_beef() {
 
 	debug_print
@@ -13713,6 +14363,8 @@ function search_for_beef() {
 }
 
 #Prepare system to work with beef
+# [FR] Prépare le démarrage de BeEF : vérifie/configure le fichier de config YAML, le port,
+# [FR] l'exécutable, et lance BeEF en service ou directement. Propose une configuration manuelle si besoin.
 function prepare_beef_start() {
 
 	debug_print
@@ -13757,6 +14409,8 @@ function prepare_beef_start() {
 }
 
 #Set beef path manually
+# [FR] Demande à l'utilisateur de saisir manuellement le chemin vers l'exécutable BeEF.
+# [FR] Valide le chemin et met à jour beef_exec_path. Propose de sauvegarder pour les prochains lancements.
 function manual_beef_set() {
 
 	debug_print
@@ -13797,6 +14451,8 @@ function manual_beef_set() {
 }
 
 #Fix for not found beef executable
+# [FR] Tente de résoudre le problème "beef non trouvé" : cherche dans les chemins alternatifs,
+# [FR] propose une saisie manuelle ou ignore BeEF pour l'attaque en cours.
 function fix_beef_executable() {
 
 	debug_print
@@ -13814,6 +14470,8 @@ function fix_beef_executable() {
 }
 
 #Rewrite airgeddon script in a polymorphic way adding custom beef location to array to get persistence
+# [FR] Sauvegarde le chemin BeEF personnalisé directement dans airgeddon.sh pour le rendre persistant.
+# [FR] Utilise sed pour ajouter le chemin dans le tableau beef_path_hints[] du script principal.
 function rewrite_script_with_custom_beef() {
 
 	debug_print
@@ -13832,6 +14490,7 @@ function rewrite_script_with_custom_beef() {
 }
 
 #Start beef process as a service
+# [FR] Lance BeEF via systemctl (service beef-xss) si disponible. Alternative au lancement direct.
 function start_beef_service() {
 
 	debug_print
@@ -13842,6 +14501,8 @@ function start_beef_service() {
 }
 
 #Launch beef browser exploitation framework
+# [FR] Lance BeEF dans une fenêtre xterm/tmux. Se place dans le répertoire BeEF avant le lancement.
+# [FR] L'interface web BeEF sera accessible sur beef_port pour contrôler les navigateurs piégés.
 #shellcheck disable=SC2164
 function launch_beef() {
 
@@ -13879,6 +14540,7 @@ function launch_beef() {
 }
 
 #Launch bettercap sniffer
+# [FR] Lance bettercap en mode proxy SSL pour l'attaque sslstrip2 : intercept HTTP/HTTPS des clients.
 #shellcheck disable=SC2001
 function launch_bettercap_sniffing() {
 
@@ -13935,6 +14597,8 @@ function launch_bettercap_sniffing() {
 }
 
 #Parse ettercap log searching for captured passwords
+# [FR] Analyse le log ettercap pour extraire les identifiants (login/password) capturés.
+# [FR] Retourne les credentials sous forme lisible pour affichage dans la fenêtre de contrôle ET.
 function parse_ettercap_log() {
 
 	debug_print
@@ -13977,6 +14641,8 @@ function parse_ettercap_log() {
 }
 
 #Parse bettercap log searching for captured passwords
+# [FR] Analyse le log bettercap pour extraire les credentials capturés via sslstrip2/proxy.
+# [FR] Supporte les formats bettercap 1.x et 2.x. Affiche les résultats dans la fenêtre de contrôle.
 function parse_bettercap_log() {
 
 	debug_print
@@ -14045,6 +14711,8 @@ function parse_bettercap_log() {
 }
 
 #Write on a file the id of the Evil Twin attack processes
+# [FR] Écrit les PIDs des processus ET dans un fichier pour pouvoir les tuer proprement à la fin.
+# [FR] Inclut : hostapd, dhcpd, dnsmasq, ettercap/bettercap, lighttpd, etc.
 function write_et_processes() {
 
 	debug_print
@@ -14063,6 +14731,8 @@ function write_et_processes() {
 }
 
 #Kill a given PID and all its subprocesses recursively
+# [FR] Tue récursivement un processus et tous ses enfants (via kill -TERM/KILL).
+# [FR] Utilisé pour arrêter proprement les processus ET (hostapd, dhcpd, etc.) sans laisser d'orphelins.
 	function kill_pid_and_children_recursive() {
 
 	debug_print
@@ -14085,6 +14755,8 @@ function write_et_processes() {
 	}
 
 #Kill the WPA3 downgrade attack processes
+# [FR] Arrête tous les processus de l'attaque WPA3 downgrade (hostapd, deauth, monitor).
+# [FR] Restaure l'interface dans son état précédent (managed/monitor selon et_initial_state).
 function kill_wpa3_downgrade_attack_processes() {
 
 	debug_print
@@ -14098,6 +14770,8 @@ function kill_wpa3_downgrade_attack_processes() {
 }
 
 #Kill the Evil Twin and Enterprise processes
+# [FR] Arrête tous les processus Evil Twin/Enterprise (hostapd, dhcpd, dnsmasq, lighttpd, etc.).
+# [FR] Restaure les règles iptables/nftables originales et les interfaces réseau.
 function kill_et_windows() {
 
 	debug_print
@@ -14122,6 +14796,8 @@ function kill_et_windows() {
 }
 
 #Kill DoS pursuit mode processes
+# [FR] Arrête tous les processus du mode Pursuit DoS (aireplay secondaire + pid_control_pursuit_mode).
+# [FR] Utilisé lors de la fin d'une attaque DoS ou ET avec pursuit mode activé.
 function kill_dos_pursuit_mode_processes() {
 
 	debug_print
@@ -14138,6 +14814,8 @@ function kill_dos_pursuit_mode_processes() {
 }
 
 #Set current channel reading it from file
+# [FR] Lit le canal courant depuis le fichier channelfile (mis à jour par pid_control_pursuit_mode).
+# [FR] Permet de synchroniser le canal entre le thread de contrôle et le processus DoS principal.
 function recover_current_channel() {
 
 	debug_print
@@ -14150,6 +14828,9 @@ function recover_current_channel() {
 }
 
 #Convert capture file to hashcat format
+# [FR] Convertit un fichier de capture .cap en format hashcat -m 22000 via hcxpcapngtool.
+# [FR] Génère un fichier hash temporaire dans tmpdir pour les attaques hashcat hors ligne.
+# [FR] Indique si la capture contient un handshake, un PMKID, ou les deux.
 function convert_cap_to_hashcat_format() {
 
 	debug_print
@@ -14199,6 +14880,8 @@ function convert_cap_to_hashcat_format() {
 }
 
 #Handshake/PMKID/Decloaking tools menu
+# [FR] Menu des outils de capture handshake, PMKID et décloaking. Options : capture handshake,
+# [FR] capture PMKID, nettoyage fichier capture, décloaking ESSID (mdk/airodump/dictionnaire).
 function handshake_pmkid_decloaking_tools_menu() {
 
 	debug_print
@@ -14290,6 +14973,8 @@ function handshake_pmkid_decloaking_tools_menu() {
 }
 
 #Execute the cleaning of a Handshake file
+# [FR] Exécute le nettoyage réel du fichier de capture : supprime les trames non pertinentes
+# [FR] via wpaclean pour réduire la taille et améliorer la compatibilité avec les outils de crack.
 function exec_clean_handshake_file() {
 
 	debug_print
@@ -14305,6 +14990,8 @@ function exec_clean_handshake_file() {
 }
 
 #Validate and ask for the parameters used to clean a Handshake file
+# [FR] Demande le fichier de capture à nettoyer et le BSSID cible. Valide le fichier avant nettoyage.
+# [FR] Lance exec_clean_handshake_file() après confirmation de l'utilisateur.
 function clean_handshake_file_option() {
 
 	debug_print
@@ -14336,6 +15023,8 @@ function clean_handshake_file_option() {
 }
 
 #DoS attacks menu
+# [FR] Menu des attaques DoS Wi-Fi. Propose : déauthentification (mdk3/4, aireplay), Auth DoS,
+# [FR] beacon flood, probe flood, WIDS confusion, capture handshake combiné au DoS, DoS Pursuit Mode.
 function dos_attacks_menu() {
 
 	debug_print
@@ -14430,6 +15119,9 @@ function dos_attacks_menu() {
 }
 
 #Capture Handshake on Evil Twin attack
+# [FR] Lance la capture de handshake WPA dans le contexte d'une attaque Evil Twin.
+# [FR] Surveille le fichier de capture airodump et détecte le handshake pour le BSSID cible.
+# [FR] Une fois capturé, propose de sauvegarder le fichier .cap pour un déchiffrement ultérieur.
 function capture_handshake_evil_twin() {
 
 	debug_print
@@ -14491,7 +15183,8 @@ function capture_handshake_evil_twin() {
 	check_bssid_in_captured_file "${tmpdir}${standardhandshake_filename}" "showing_msgs_capturing" "also_pmkid"
 	case "$?" in
 		"0")
-			handshakepath="${default_save_path}"
+			# Défaut : répertoire partagé Fluxion/airgeddon pour centraliser les handshakes
+			handshakepath="${fluxion_handshakes_dir}/"
 			handshakefilename="handshake-${bssid}.cap"
 			handshakepath="${handshakepath}${handshakefilename}"
 
@@ -14521,6 +15214,8 @@ function capture_handshake_evil_twin() {
 }
 
 #Decloak ESSID by deauthentication or by dictionary on Handshake/PMKID/Decloak tools
+# [FR] Prépare les prérequis pour décloaker un réseau caché (Hidden SSID) : vérifie l'interface monitor,
+# [FR] lance airodump en parallèle, propose déauthentification ou attaque par dictionnaire mdk.
 function decloak_prequisites() {
 
 	debug_print
@@ -14561,6 +15256,8 @@ function decloak_prequisites() {
 }
 
 #Execute mdk decloak by dictionary
+# [FR] Lance mdk3/4 en mode "dictionary attack on beacons" pour tenter de décloaker un SSID caché.
+# [FR] Génère des probes avec tous les SSID du fichier dictionnaire jusqu'à trouver le bon.
 function exec_decloak_by_dictionary() {
 
 	debug_print
@@ -14593,6 +15290,9 @@ function exec_decloak_by_dictionary() {
 }
 
 #Capture Handshake on Handshake/PMKID tools
+# [FR] Lance la capture de handshake WPA ou PMKID avec airodump-ng/hcxdumptool.
+# [FR] Surveille la capture en temps réel et s'arrête dès qu'un handshake/PMKID valide est détecté.
+# [FR] Propose de sauvegarder le fichier .cap résultant pour le déchiffrement.
 function capture_pmkid_handshake() {
 
 	debug_print
@@ -14643,6 +15343,8 @@ function capture_pmkid_handshake() {
 }
 
 #Check if file exists
+# [FR] Vérifie qu'un fichier existe et n'est pas vide. Affiche un message d'erreur si absent.
+# [FR] Retourne 0 si le fichier existe et est non vide, 1 sinon.
 function check_file_exists() {
 
 	debug_print
@@ -14655,6 +15357,9 @@ function check_file_exists() {
 }
 
 #Validate path
+# [FR] Valide le chemin saisi par l'utilisateur selon le type demandé (dictionary, capture, rules...).
+# [FR] Vérifie existence, droits d'accès, format et contenu du fichier/répertoire.
+# [FR] Positionne validpath=0 si valide, affiche les erreurs et boucle sinon.
 function validate_path() {
 
 	debug_print
@@ -14816,6 +15521,8 @@ function validate_path() {
 }
 
 #It checks for write permissions of a directory recursively
+# [FR] Vérifie récursivement les droits d'écriture d'un répertoire jusqu'à trouver un parent accessible.
+# [FR] Retourne 0 si un répertoire accessible en écriture est trouvé dans la hiérarchie, 1 sinon.
 function dir_permission_check() {
 
 	debug_print
@@ -14833,6 +15540,8 @@ function dir_permission_check() {
 }
 
 #Check for write permissions on a given path
+# [FR] Vérifie que l'utilisateur a les droits d'écriture sur le chemin indiqué.
+# [FR] Appelle dir_permission_check() pour remonter la hiérarchie si le répertoire n'existe pas encore.
 function check_write_permissions() {
 
 	debug_print
@@ -14844,6 +15553,8 @@ function check_write_permissions() {
 }
 
 #Clean some special chars from strings usually messing with autocompleted paths
+# [FR] Supprime les caractères spéciaux problématiques des chemins auto-complétés (espaces finaux,
+# [FR] backslashes d'échappement ajoutés par bash tab-completion). Retourne le chemin nettoyé.
 function fix_autocomplete_chars() {
 
 	debug_print
@@ -14855,6 +15566,8 @@ function fix_autocomplete_chars() {
 }
 
 #Create a var with the name passed to the function and reading the value from the user input
+# [FR] Lit un chemin saisi par l'utilisateur, supprime les caractères parasites d'auto-complétion,
+# [FR] et stocke le résultat dans la variable nommée en paramètre (via eval/printf).
 function read_and_clean_path() {
 
 	debug_print
@@ -14874,6 +15587,8 @@ function read_and_clean_path() {
 }
 
 #Sanitize input used for paths
+# [FR] Nettoie une chaîne pour l'utiliser comme nom de fichier : supprime les caractères interdits,
+# [FR] espaces, slashes, etc. Retourne le nom de fichier sécurisé.
 #shellcheck disable=SC2001
 function sanitize_path() {
 
@@ -14890,6 +15605,9 @@ function sanitize_path() {
 }
 
 #Read and validate a path
+# [FR] Fonction centrale de saisie/validation de chemins. Affiche le prompt adapté au type de chemin
+# [FR] (dictionary, capture, pot file, etc.), lit l'entrée utilisateur, nettoie et appelle validate_path().
+# [FR] Supporte la tabulation bash et les chemins relatifs/absolus.
 function read_path() {
 
 	debug_print
@@ -15096,6 +15814,8 @@ function read_path() {
 }
 
 #Launch the DoS selection menu before capture enterprise information gathering
+# [FR] Menu de sélection du type de DoS avant la capture d'informations Enterprise (identités/certificats).
+# [FR] Propose mdk3/4, aireplay, Auth DoS, ou pas de DoS pour chasser les clients du vrai AP.
 function dos_info_gathering_enterprise_menu() {
 
 	debug_print
@@ -15216,6 +15936,8 @@ function dos_info_gathering_enterprise_menu() {
 }
 
 #Launch the DoS selection menu before capture a Handshake or decloak a network and process the captured file
+# [FR] Menu de sélection DoS avant capture handshake/PMKID ou décloaking. Propose les méthodes DoS
+# [FR] disponibles puis lance la capture et traite le fichier .cap résultant (vérification/sauvegarde).
 function dos_handshake_decloaking_menu() {
 
 	debug_print
@@ -15337,6 +16059,8 @@ function dos_handshake_decloaking_menu() {
 }
 
 #Enterprise certificates analysis launcher
+# [FR] Lance la fenêtre de capture pour l'analyse de certificats TLS Enterprise.
+# [FR] Démarre hcxdumptool/airodump sur le canal cible et extrait les certificats TLS via tshark.
 function launch_certificates_analysis() {
 
 	debug_print
@@ -15380,6 +16104,8 @@ function launch_certificates_analysis() {
 }
 
 #Enterprise identities capture launcher
+# [FR] Lance la capture d'identités EAP (noms d'utilisateurs) transmises lors de l'authentification.
+# [FR] Utilise airodump-ng pour capturer les trames EAP Identity, puis tshark pour les extraire.
 function launch_identities_capture() {
 
 	debug_print
@@ -15416,6 +16142,8 @@ function launch_identities_capture() {
 }
 
 #Decloak capture launcher
+# [FR] Lance la capture airodump-ng pour le décloaking ESSID sur le canal de la cible.
+# [FR] Surveille le fichier CSV de capture pour détecter l'ESSID du réseau caché.
 function launch_decloak_capture() {
 
 	debug_print
@@ -15444,6 +16172,8 @@ function launch_decloak_capture() {
 }
 
 #Handshake capture launcher
+# [FR] Lance les fenêtres de capture handshake : airodump-ng pour capturer les trames,
+# [FR] et optionnellement aireplay-ng pour la déauthentification. Surveille la capture.
 function launch_handshake_capture() {
 
 	debug_print
@@ -15460,7 +16190,8 @@ function launch_handshake_capture() {
 	check_bssid_in_captured_file "${tmpdir}${standardhandshake_filename}" "showing_msgs_capturing" "also_pmkid"
 	case "$?" in
 		"0")
-			handshakepath="${default_save_path}"
+			# Défaut : répertoire partagé Fluxion/airgeddon pour centraliser les handshakes
+			handshakepath="${fluxion_handshakes_dir}/"
 			handshakefilename="handshake-${bssid}.cap"
 			handshakepath="${handshakepath}${handshakefilename}"
 
@@ -15489,6 +16220,8 @@ function launch_handshake_capture() {
 }
 
 #Check if a Handshake is WPA2
+# [FR] Vérifie que le fichier de capture contient un vrai handshake WPA2 (et non WPA3 ou WEP).
+# [FR] Utilise aircrack-ng pour valider le format. Retourne 0 si WPA2, 1 sinon.
 function is_wpa2_handshake() {
 
 	debug_print
@@ -15498,6 +16231,8 @@ function is_wpa2_handshake() {
 }
 
 #Launch the Decloak window
+# [FR] Lance la fenêtre airodump-ng dédiée au décloaking dans xterm/tmux.
+# [FR] Cette fenêtre affiche les beacons/probes pour aider à trouver le SSID caché.
 function decloak_window() {
 
 	debug_print
@@ -15523,6 +16258,8 @@ function decloak_window() {
 }
 
 #Launch the Handshake capture window
+# [FR] Lance la fenêtre airodump-ng pour la capture du handshake WPA dans xterm/tmux.
+# [FR] Filtre sur le BSSID et le canal de la cible pour une capture ciblée.
 function capture_handshake_window() {
 
 	debug_print
@@ -15548,6 +16285,8 @@ function capture_handshake_window() {
 }
 
 #Launch enterprise identities capture/certificates analysis window
+# [FR] Lance la fenêtre airodump-ng pour la capture de trames Enterprise (identités EAP/certificats).
+# [FR] Capture sur le canal cible avec filtre BSSID pour isoler les trames de la cible Enterprise.
 function identities_certificates_capture_window() {
 
 	debug_print
@@ -15579,6 +16318,9 @@ function identities_certificates_capture_window() {
 }
 
 #Launch the PMKID capture window
+# [FR] Lance la capture PMKID via hcxdumptool (sans déauthentification nécessaire).
+# [FR] Le PMKID est extrait des trames EAPOL Association sans avoir besoin d'un client connecté.
+# [FR] Convertit ensuite le résultat en format hashcat -m 22000.
 function launch_pmkid_capture() {
 
 	debug_print
@@ -15677,6 +16419,9 @@ function launch_pmkid_capture() {
 }
 
 #Manage target exploration and parse the output files
+# [FR] Lance un scan airodump-ng, parse les résultats CSV et affiche un menu de sélection de cible.
+# [FR] Paramètre 1 : type de réseau à filtrer (WPA/WEP/""). Paramètre 2 : contexte (enterprise/etc.).
+# [FR] Stocke bssid, essid, channel de la cible sélectionnée dans les variables globales correspondantes.
 function explore_for_targets_option() {
 
 	debug_print
@@ -15879,6 +16624,9 @@ function explore_for_targets_option() {
 }
 
 #Manage target exploration only for Access Points with WPS activated. Parse output files and print menu with results
+# [FR] Lance un scan wash/airodump pour lister uniquement les AP avec WPS activé.
+# [FR] Parse la sortie wash (JSON ou texte) et affiche un menu de sélection avec les PIN WPS connus.
+# [FR] Stocke wps_bssid, wps_channel et les données WPS dans wps_data_array[] après sélection.
 function explore_for_wps_targets_option() {
 
 	debug_print
@@ -16130,6 +16878,9 @@ function explore_for_wps_targets_option() {
 }
 
 #Create a menu to select target from the parsed data
+# [FR] Affiche le menu de sélection de la cible à partir des données parsées du scan airodump.
+# [FR] Liste les réseaux avec numérotation, BSSID, canal, puissance, chiffrement et ESSID.
+# [FR] Positionne bssid, channel, essid, les standards 802.11 et le contexte personal/enterprise.
 function select_target() {
 
 	debug_print
@@ -16276,6 +17027,8 @@ function select_target() {
 }
 
 #Perform a test to determine if fcs parameter is needed on wash scanning
+# [FR] Teste si le paramètre --ignore-fcs est nécessaire pour wash sur cette interface/version.
+# [FR] Certains drivers (dont RTL8812AU) nécessitent --ignore-fcs pour que wash produise des résultats.
 function set_wash_parameterization() {
 
 	debug_print
@@ -16295,6 +17048,8 @@ function set_wash_parameterization() {
 }
 
 #Check if a type exists in the wps data array
+# [FR] Vérifie si une entrée de type donné (ComputePIN, EasyBox, etc.) existe pour un BSSID dans wps_data_array[].
+# [FR] Retourne 0 si le type existe déjà (évite de recalculer inutilement), 1 sinon.
 function check_if_type_exists_in_wps_data_array() {
 
 	debug_print
@@ -16303,6 +17058,8 @@ function check_if_type_exists_in_wps_data_array() {
 }
 
 #Check if a pin exists in the wps data array
+# [FR] Vérifie si un PIN spécifique existe déjà dans le tableau WPS pour un BSSID donné.
+# [FR] Évite les doublons lors de l'insertion de nouveaux PIN dans wps_data_array[].
 function check_if_pin_exists_in_wps_data_array() {
 
 	debug_print
@@ -16311,6 +17068,8 @@ function check_if_pin_exists_in_wps_data_array() {
 }
 
 #Fill data into wps data array
+# [FR] Insère un PIN calculé dans le tableau associatif wps_data_array[BSSID,Type].
+# [FR] Appelé après chaque calcul de PIN (ComputePIN, EasyBox, Arcadyan, Database) pour mise en cache.
 function fill_wps_data_array() {
 
 	debug_print
@@ -16330,6 +17089,9 @@ function fill_wps_data_array() {
 }
 
 #Manage and validate the prerequisites for wps pin database attacks
+# [FR] Vérifie les prérequis pour les attaques WPS par base de données de PIN connus.
+# [FR] Télécharge known_pins.db si absent, vérifie le checksum, initialise wps_data_array[].
+# [FR] Paramètre optionnel "no_attack" pour une consultation sans lancer d'attaque.
 function wps_pin_database_prerequisites() {
 
 	debug_print
@@ -16361,6 +17123,9 @@ function wps_pin_database_prerequisites() {
 }
 
 #Manage and validate the prerequisites for WPA3 downgrade attack
+# [FR] Vérifie les prérequis pour l'attaque WPA3 downgrade : interface monitor compatible,
+# [FR] support des standards 802.11ax, sélection du type de DoS, configuration hostapd WPA2.
+# [FR] Lance exec_wpa3_downgrade_attack() si tous les prérequis sont satisfaits.
 function wpa3_downgrade_prerequisites() {
 
 	debug_print
@@ -16422,6 +17187,9 @@ function wpa3_downgrade_prerequisites() {
 }
 
 #Manage and validate the prerequisites for Evil Twin and Enterprise attacks
+# [FR] Vérifie tous les prérequis pour lancer une attaque Evil Twin ou Enterprise :
+# [FR] support VIF, BSSID/ESSID/canal définis, interface internet disponible, ports libres, DHCP configuré.
+# [FR] Configure hostapd, DNS, routage et portail captif avant de lancer l'attaque.
 function et_prerequisites() {
 
 	debug_print
@@ -16701,6 +17469,9 @@ function et_prerequisites() {
 }
 
 #Manage the Handshake file requirement for captive portal Evil Twin attack
+# [FR] Demande optionnellement un fichier de capture handshake pour le portail captif.
+# [FR] Ce handshake sert à valider le mot de passe soumis par le client sur le portail.
+# [FR] Si fourni, le script CGI vérifie le MDP via aircrack avant d'afficher la page de succès.
 function ask_et_handshake_file() {
 
 	debug_print
@@ -16742,6 +17513,9 @@ function ask_et_handshake_file() {
 }
 
 #DoS Evil Twin and Enterprise attacks menu
+# [FR] Menu de sélection du type de DoS pour les attaques Evil Twin/Enterprise.
+# [FR] Propose : mdk3/4, aireplay-ng déauthentification, Auth DoS (mdk mode a).
+# [FR] Lance et_prerequisites() avec le type de DoS sélectionné une fois le choix confirmé.
 function et_dos_menu() {
 
 	debug_print
@@ -16869,6 +17643,8 @@ function et_dos_menu() {
 }
 
 #DoS WPA3 downgrade attack menu
+# [FR] Menu de sélection du type de DoS spécifique pour l'attaque WPA3 downgrade.
+# [FR] Lance wpa3_downgrade_prerequisites() avec le type de DoS choisi après vérification.
 function wpa3_dos_menu() {
 
 	debug_print
@@ -16929,6 +17705,8 @@ function wpa3_dos_menu() {
 }
 
 #Selected internet interface detection
+# [FR] Détecte l'interface internet disponible pour le NAT dans les attaques Evil Twin.
+# [FR] Cherche une interface avec une route par défaut (ip route get 8.8.8.8). Exclut l'interface Wi-Fi.
 function detect_internet_interface() {
 
 	debug_print
@@ -16957,6 +17735,8 @@ function detect_internet_interface() {
 }
 
 #Show about and credits
+# [FR] Affiche la page de crédits d'airgeddon : version, auteur (v1s1t0r), licence (GPL3),
+# [FR] contributeurs, lien GitHub, et informations de donation.
 function credits_option() {
 
 	debug_print
@@ -17016,6 +17796,7 @@ function credits_option() {
 }
 
 #Show message for invalid selected language
+# [FR] Affiche un message d'erreur quand l'utilisateur saisit un choix de langue invalide dans le menu.
 function invalid_language_selected() {
 
 	debug_print
@@ -17027,6 +17808,8 @@ function invalid_language_selected() {
 }
 
 #Show message for captive portal invalid selected language
+# [FR] Affiche un message d'erreur pour un choix de langue de portail captif invalide,
+# [FR] puis rappelle set_captive_portal_language() pour demander un choix valide.
 function invalid_captive_portal_language_selected() {
 
 	debug_print
@@ -17038,6 +17821,8 @@ function invalid_captive_portal_language_selected() {
 }
 
 #Show message for forbidden selected option
+# [FR] Affiche un message d'erreur quand l'utilisateur choisit une option désactivée
+# [FR] (outil manquant, dépendance absente). L'option était dans forbidden_options[].
 function forbidden_menu_option() {
 
 	debug_print
@@ -17048,6 +17833,8 @@ function forbidden_menu_option() {
 }
 
 #Show message for invalid selected option
+# [FR] Affiche un message d'erreur générique quand l'utilisateur saisit un numéro hors plage
+# [FR] ou non numérique dans un menu. Équivalent du "choix invalide" standard.
 function invalid_menu_option() {
 
 	debug_print
@@ -17058,6 +17845,8 @@ function invalid_menu_option() {
 }
 
 #Show message for invalid selected interface
+# [FR] Affiche un message d'erreur quand l'interface saisie n'existe pas ou n'est pas Wi-Fi,
+# [FR] puis rappelle select_interface() pour que l'utilisateur choisisse une interface valide.
 function invalid_iface_selected() {
 
 	debug_print
@@ -17071,6 +17860,8 @@ function invalid_iface_selected() {
 }
 
 #Show message for invalid selected secondary interface
+# [FR] Affiche un message d'erreur pour une interface secondaire invalide (DoS Pursuit Mode).
+# [FR] Rappelle select_secondary_interface() pour forcer un nouveau choix valide.
 function invalid_secondary_iface_selected() {
 
 	debug_print
@@ -17084,6 +17875,8 @@ function invalid_secondary_iface_selected() {
 }
 
 #Manage behavior of captured traps
+# [FR] Gère les signaux SIGINT/SIGTERM/SIGTSTP (Ctrl+C, Ctrl+Z). Affiche le dernier message mémorisé
+# [FR] et permet de reprendre proprement après une interruption pendant une attaque en cours.
 function capture_traps() {
 
 	debug_print
@@ -17154,6 +17947,8 @@ function capture_traps() {
 }
 
 #Exit the script managing possible pending tasks
+# [FR] Quitte airgeddon proprement : restaure les interfaces (managed/monitor), nettoie iptables,
+# [FR] arrête les processus en cours, affiche un message d'au revoir. Demande confirmation si attaque active.
 function exit_script_option() {
 
 	debug_print
@@ -17229,6 +18024,8 @@ function exit_script_option() {
 }
 
 #Exit the script managing possible pending tasks but not showing anything
+# [FR] Quitte immédiatement et silencieusement airgeddon (sans confirmation ni messages).
+# [FR] Utilisé lors d'erreurs critiques ou de sorties forcées depuis les sous-scripts.
 function hardcore_exit() {
 
 	debug_print
@@ -17268,6 +18065,8 @@ function hardcore_exit() {
 }
 
 #Generate a small time loop printing some dots
+# [FR] Affiche une animation de points pendant N secondes (ex: "...") pour indiquer une attente.
+# [FR] Utilisé comme délai visuel lors du démarrage d'outils (hostapd, dhcpd, etc.).
 function time_loop() {
 
 	debug_print
@@ -17280,6 +18079,8 @@ function time_loop() {
 }
 
 #Detect iptables/nftables
+# [FR] Détecte si le système utilise iptables (legacy) ou nftables pour la gestion du firewall.
+# [FR] Positionne iptables_nftables=1 si nftables, 0 si iptables legacy. Adapte iptables_cmd.
 function iptables_nftables_detection() {
 
 	debug_print
@@ -17315,6 +18116,8 @@ function iptables_nftables_detection() {
 }
 
 #Determine which version of airmon to use
+# [FR] Détecte si airmon-ng ou airmon-zc est disponible. Vérifie aussi la présence d'ethtool
+# [FR] (requis par airmon-zc). Positionne la variable airmon avec le nom d'exécutable correct.
 function airmon_fix() {
 
 	debug_print
@@ -17327,6 +18130,8 @@ function airmon_fix() {
 }
 
 #Set hashcat parameters based on version
+# [FR] Configure les paramètres hashcat selon la version détectée : format de sortie, fichier pot,
+# [FR] options PMKID, etc. Adapte les commandes pour hashcat ≥3.0 et les nouvelles options GPU.
 function set_hashcat_parameters() {
 
 	debug_print
@@ -17358,6 +18163,8 @@ function set_hashcat_parameters() {
 }
 
 #Detects if your arping version is the right one or if it is the bad iputils-arping
+# [FR] Vérifie que arping est la version "arping2" (Thomas Habets) et non iputils-arping.
+# [FR] iputils-arping n'est pas compatible avec certaines fonctions d'airgeddon (options différentes).
 function check_right_arping() {
 
 	debug_print
@@ -17369,6 +18176,8 @@ function check_right_arping() {
 }
 
 #Detects if John the Ripper is able to perform the attacks
+# [FR] Vérifie que John the Ripper supporte le format NETNTLM (requis pour les attaques Enterprise).
+# [FR] Teste john avec --list=formats et cherche "netntlm". Retourne 0 si compatible, 1 sinon.
 function validate_jtr() {
 
 	debug_print
@@ -17380,6 +18189,8 @@ function validate_jtr() {
 }
 
 #Determine aircrack version
+# [FR] Détecte la version d'aircrack-ng installée via aircrack-ng --help.
+# [FR] Stocke le numéro de version dans aircrack_version pour les comparaisons de compatibilité.
 #shellcheck disable=SC2034
 function get_aircrack_version() {
 
@@ -17391,6 +18202,7 @@ function get_aircrack_version() {
 }
 
 #Determine john the ripper version
+# [FR] Détecte la version de John the Ripper installée. Stocke dans jtr_version.
 function get_jtr_version() {
 
 	debug_print
@@ -17399,6 +18211,8 @@ function get_jtr_version() {
 }
 
 #Determine hashcat version
+# [FR] Détecte la version de hashcat installée. Stocke dans hashcat_version.
+# [FR] Utilisée pour activer/désactiver les fonctionnalités selon la version (PMKID, -m 22000, etc.).
 function get_hashcat_version() {
 
 	debug_print
@@ -17408,6 +18222,7 @@ function get_hashcat_version() {
 }
 
 #Determine hcxdumptool version
+# [FR] Détecte la version de hcxdumptool (outil de capture PMKID). Stocke dans hcxdumptool_version.
 function get_hcxdumptool_version() {
 
 	debug_print
@@ -17416,6 +18231,7 @@ function get_hcxdumptool_version() {
 }
 
 #Determine beef version
+# [FR] Détecte la version de BeEF installée. Stocke dans beef_version pour les comparaisons.
 function get_beef_version() {
 
 	debug_print
@@ -17424,6 +18240,8 @@ function get_beef_version() {
 }
 
 #Determine bettercap version
+# [FR] Détecte la version de bettercap. Stocke dans bettercap_version.
+# [FR] bettercap 2.x a une API différente de 1.x ; la version détermine les options utilisées.
 function get_bettercap_version() {
 
 	debug_print
@@ -17436,6 +18254,8 @@ function get_bettercap_version() {
 }
 
 #Determine hostapd version
+# [FR] Détecte la version de hostapd. Stocke dans hostapd_version.
+# [FR] Permet d'activer ieee80211ax/be selon la version de hostapd (WiFi 6/7).
 function get_hostapd_version() {
 
 	debug_print
@@ -17444,6 +18264,7 @@ function get_hostapd_version() {
 }
 
 #Determine hostapd-wpe version
+# [FR] Détecte la version de hostapd-wpe (Wireless Pwnage Edition). Stocke dans hostapd_wpe_version.
 function get_hostapd_wpe_version() {
 
 	debug_print
@@ -17452,6 +18273,8 @@ function get_hostapd_wpe_version() {
 }
 
 #Determine bully version
+# [FR] Détecte la version de bully (outil WPS). Stocke dans bully_version.
+# [FR] Utilisée pour valider la compatibilité Pixie Dust et les options disponibles.
 function get_bully_version() {
 
 	debug_print
@@ -17462,6 +18285,8 @@ function get_bully_version() {
 }
 
 #Determine reaver version
+# [FR] Détecte la version de reaver (outil WPS). Stocke dans reaver_version.
+# [FR] Utilisée pour valider la compatibilité Pixie Dust, NULL PIN et dual-scan.
 function get_reaver_version() {
 
 	debug_print
@@ -17474,6 +18299,8 @@ function get_reaver_version() {
 }
 
 #Set verbosity for bully based on version
+# [FR] Configure le niveau de verbosité de bully selon sa version (option -v ou -V).
+# [FR] Stocke le paramètre correct dans bully_verbosity pour les commandes d'attaque.
 function set_bully_verbosity() {
 
 	debug_print
@@ -17486,6 +18313,8 @@ function set_bully_verbosity() {
 }
 
 #Validate if bully version is able to perform integrated pixiewps attack
+# [FR] Vérifie que la version de bully supporte Pixie Dust intégré (-d flag).
+# [FR] Retourne 0 si compatible, 1 si trop ancienne (Pixie Dust non supporté).
 function validate_bully_pixiewps_version() {
 
 	debug_print
@@ -17497,6 +18326,8 @@ function validate_bully_pixiewps_version() {
 }
 
 #Validate if reaver version is able to perform integrated pixiewps attack
+# [FR] Vérifie que la version de reaver supporte Pixie Dust intégré (-K flag).
+# [FR] Retourne 0 si compatible (≥ version minimale), 1 sinon.
 function validate_reaver_pixiewps_version() {
 
 	debug_print
@@ -17508,6 +18339,8 @@ function validate_reaver_pixiewps_version() {
 }
 
 #Validate if reaver version is able to perform null pin attack
+# [FR] Vérifie que la version de reaver supporte le NULL PIN (-p '' flag).
+# [FR] Retourne 0 si compatible (≥ version minimale null_pin), 1 sinon.
 function validate_reaver_nullpin_version() {
 
 	debug_print
@@ -17519,6 +18352,8 @@ function validate_reaver_nullpin_version() {
 }
 
 #Validate if wash version is able to perform 5Ghz dual scan
+# [FR] Vérifie que wash supporte le dual-scan 5GHz (option -5).
+# [FR] Retourne 0 si compatible, 1 si la version est trop ancienne pour scanner le 5GHz.
 function validate_wash_dualscan_version() {
 
 	debug_print
@@ -17530,6 +18365,8 @@ function validate_wash_dualscan_version() {
 }
 
 #Validate if aircrack version is valid to interact with WPA3
+# [FR] Vérifie qu'aircrack-ng supporte les réseaux WPA3 (SAE) pour le déchiffrement.
+# [FR] Retourne 0 si compatible (≥ version minimale wpa3), 1 sinon.
 function validate_aircrack_wpa3_version() {
 
 	debug_print
@@ -17541,6 +18378,8 @@ function validate_aircrack_wpa3_version() {
 }
 
 #Validate if hashcat version is able to perform pmkid cracking
+# [FR] Vérifie que hashcat supporte le cracking PMKID (mode -m 22000 ou hccapx selon version).
+# [FR] Retourne 0 si compatible (≥ hashcat_pmkid_min_version), 1 sinon.
 function validate_hashcat_pmkid_version() {
 
 	debug_print
@@ -17552,11 +18391,15 @@ function validate_hashcat_pmkid_version() {
 }
 
 #Detects if operating in a VM and detects VM vendor
+# [FR] Détecte si airgeddon tourne dans une machine virtuelle (VMware, VirtualBox, KVM, Hyper-V).
+# [FR] Affiche un avertissement si VM détectée : les cartes Wi-Fi USB peuvent avoir des limitations VM.
+# [FR] Utilise /sys/class/dmi/ et systemd-detect-virt pour la détection.
 function vm_detection() {
 
 	debug_print
 
 	_readfile() { [ -r "${1}" ] && tr -d '\0' < "${1}"; }
+	# [FR] Convertit une chaîne en minuscules (utilisé pour la détection de distro et comparaisons insensibles à la casse).
 	_lowercase() { printf '%s' "$*" | tr '[:upper:]' '[:lower:]'; }
 
 	local mac
@@ -17612,6 +18455,8 @@ function vm_detection() {
 }
 
 #Set the script folder var if necessary
+# [FR] Détermine le répertoire du script (scriptfolder) et le répertoire temporaire (tmpdir).
+# [FR] Gère les cas d'exécution depuis un autre répertoire ou via un lien symbolique.
 function set_script_paths() {
 
 	debug_print
@@ -17643,6 +18488,8 @@ function set_script_paths() {
 }
 
 #Set the default directory for saving files
+# [FR] Détermine le répertoire de sauvegarde par défaut pour les fichiers capturés (handshake, pot...).
+# [FR] Utilise le répertoire home de l'utilisateur ou scriptfolder selon la configuration AIRGEDDON_AUTO_CHANGE_LANGUAGE.
 function set_default_save_path() {
 
 	debug_print
@@ -17655,6 +18502,8 @@ function set_default_save_path() {
 }
 
 #Return absolute path for a given string path
+# [FR] Convertit un chemin relatif en chemin absolu. Résout les ~, ./, ../ etc.
+# [FR] Retourne le chemin absolu via echo. Utilisé pour normaliser les chemins saisis par l'utilisateur.
 function set_absolute_path() {
 
 	debug_print
@@ -17668,6 +18517,9 @@ function set_absolute_path() {
 }
 
 #Check if pins database file exist and try to download the new one if proceed
+# [FR] Vérifie la présence et l'intégrité de known_pins.db (base de PIN WPS par fabricant).
+# [FR] Si absent ou checksum différent du serveur, propose de le télécharger automatiquement.
+# [FR] Utilisée avant les attaques WPS par base de données.
 function check_pins_database_file() {
 
 	debug_print
@@ -17731,6 +18583,8 @@ function check_pins_database_file() {
 }
 
 #Get and write options form options config file
+# [FR] Lit le fichier de configuration (.airgeddonrc) et met à jour les variables d'options en mémoire.
+# [FR] Aussi utilisé pour écrire/mettre à jour les options dans le fichier rc après modification.
 function update_options_config_file() {
 
 	debug_print
@@ -17756,6 +18610,8 @@ function update_options_config_file() {
 }
 
 #Download the options config file
+# [FR] Télécharge le fichier de configuration .airgeddonrc depuis le dépôt GitHub si absent.
+# [FR] Crée un fichier rc avec les valeurs par défaut si le téléchargement échoue.
 function download_options_config_file() {
 
 	debug_print
@@ -17786,6 +18642,8 @@ function download_options_config_file() {
 }
 
 #Download the pins database file
+# [FR] Télécharge le fichier known_pins.db depuis le serveur GitHub Releases d'airgeddon.
+# [FR] Vérifie le checksum après téléchargement. Retourne 0 si succès, 1 si échec.
 function download_pins_database_file() {
 
 	debug_print
@@ -17816,6 +18674,8 @@ function download_pins_database_file() {
 }
 
 #Ask for try to download pin db file again and set the var to skip it
+# [FR] Demande à l'utilisateur s'il veut réessayer le téléchargement de known_pins.db après un échec.
+# [FR] Si refus, positionne pin_dbfile_checked=1 pour éviter de redemander à chaque démarrage.
 function ask_for_pin_dbfile_download_retry() {
 
 	debug_print
@@ -17827,6 +18687,7 @@ function ask_for_pin_dbfile_download_retry() {
 }
 
 #Get the checksum for local pin database file
+# [FR] Calcule le checksum MD5 du fichier known_pins.db local. Stocke dans local_pin_dbfile_checksum.
 function get_local_pin_dbfile_checksum() {
 
 	debug_print
@@ -17835,6 +18696,8 @@ function get_local_pin_dbfile_checksum() {
 }
 
 #Get the checksum for remote pin database file
+# [FR] Récupère le checksum MD5 du fichier known_pins.db distant (depuis GitHub Releases).
+# [FR] Compare avec le local pour décider si une mise à jour est nécessaire. Retourne 1 si inaccessible.
 function get_remote_pin_dbfile_checksum() {
 
 	debug_print
@@ -17857,6 +18720,8 @@ function get_remote_pin_dbfile_checksum() {
 }
 
 #Check for possible non Linux operating systems
+# [FR] Détecte les OS non-Linux (macOS, FreeBSD, Cygwin) et affiche un avertissement.
+# [FR] Airgeddon est conçu uniquement pour Linux ; un OS différent peut causer des dysfonctionnements.
 function non_linux_os_check() {
 
 	debug_print
@@ -17875,6 +18740,8 @@ function non_linux_os_check() {
 }
 
 #First phase of Linux distro detection based on uname output
+# [FR] Première phase de détection de la distribution Linux via uname -a.
+# [FR] Identifie : Kali, Parrot, Ubuntu, Debian, Arch, Fedora, etc. Positionne la variable distro.
 function detect_distro_phase1() {
 
 	debug_print
@@ -17910,6 +18777,8 @@ function detect_distro_phase1() {
 }
 
 #Second phase of Linux distro detection based on architecture and version file
+# [FR] Deuxième phase de détection distro : lit /etc/os-release ou /proc/version pour affiner.
+# [FR] Détecte aussi l'architecture (ARM, x86_64) et appelle detect_arm_architecture().
 function detect_distro_phase2() {
 
 	debug_print
@@ -17966,6 +18835,8 @@ function detect_distro_phase2() {
 }
 
 #Detect if arm architecture is present on system
+# [FR] Détecte si le système est ARM (Raspberry Pi, etc.) et positionne arm_architecture=1.
+# [FR] Certaines fonctionnalités ou outils ont des comportements différents sur ARM.
 function detect_arm_architecture() {
 
 	debug_print
@@ -17991,13 +18862,16 @@ function detect_arm_architecture() {
 }
 
 #Set some useful vars based on Linux distro
+# [FR] Configure les fonctionnalités spécifiques à la distribution détectée : chemins d'outils,
+# [FR] commandes système alternatives (systemctl vs service), gestion des processus airmon.
+# [FR] Aussi détecte WSL, Kali ARM, et les particularités Parrot/Arch/Fedora/OpenSUSE.
 function special_distro_features() {
 
 	debug_print
 
 	case ${distro} in
 		"Wifislax")
-			networkmanager_cmd="service restart networkmanager"
+			networkmanager_cmd="service networkmanager restart"
 			xratio=7
 			yratio=15.1
 			ywindow_edge_lines=1
@@ -18119,6 +18993,9 @@ function special_distro_features() {
 }
 
 #Determine if NetworkManager must be killed on your system. Only needed for previous versions of 1.0.12
+# [FR] Détecte si NetworkManager doit être tué pour permettre le mode monitor.
+# [FR] Sur les versions récentes de NM (≥1.0.12), le mode monitor est supporté nativement.
+# [FR] RTL8812AU: NM peut interférer avec le mode monitor → à tuer si version ancienne.
 function check_if_kill_needed() {
 
 	debug_print
@@ -18158,6 +19035,8 @@ function check_if_kill_needed() {
 }
 
 #Determine if airmon check kill should be executed
+# [FR] Détermine si 'airmon-ng check kill' doit être exécuté pour tuer les processus bloquants
+# [FR] (wpa_supplicant, NetworkManager) avant de passer en mode monitor.
 function should_run_airmon_check_kill() {
 
 	debug_print
@@ -18174,6 +19053,8 @@ function should_run_airmon_check_kill() {
 }
 
 #Check if another Evil Twin instance is running
+# [FR] Détecte si une autre instance d'airgeddon fait déjà tourner un AP Evil Twin.
+# [FR] Deux AP Evil Twin ne peuvent pas coexister sur la même interface → erreur affichée.
 function is_other_evil_twin_instance_running() {
 
 	debug_print
@@ -18193,6 +19074,7 @@ function is_other_evil_twin_instance_running() {
 }
 
 #Run airmon check kill if needed
+# [FR] Exécute 'airmon-ng check kill' si nécessaire pour libérer l'interface Wi-Fi des processus bloquants.
 function run_airmon_check_kill() {
 
 	debug_print
@@ -18207,6 +19089,8 @@ function run_airmon_check_kill() {
 }
 
 #Do some checks for some general configuration
+# [FR] Vérifications générales de configuration au démarrage : root, bash version, WSL, compatibilité OS.
+# [FR] Initialise aussi la détection de la distro Linux et des outils disponibles.
 function general_checkings() {
 
 	debug_print
@@ -18240,6 +19124,8 @@ function general_checkings() {
 }
 
 #Check if system is running under Windows Subsystem for Linux
+# [FR] Détecte si airgeddon tourne sous WSL (Windows Subsystem for Linux).
+# [FR] WSL présente des limitations importantes pour le Wi-Fi (pas d'accès USB direct natif).
 check_wsl() {
 
 	debug_print
@@ -18254,6 +19140,8 @@ check_wsl() {
 }
 
 #Check if the user is root
+# [FR] Vérifie que le script est lancé avec les droits root (UID=0).
+# [FR] Airgeddon nécessite root pour: mode monitor, injection, hostapd, DHCP, iptables/nftables.
 function check_root_permissions() {
 
 	debug_print
@@ -18274,6 +19162,8 @@ function check_root_permissions() {
 }
 
 #Print Linux known distros
+# [FR] Affiche la liste des distributions Linux supportées par airgeddon.
+# [FR] Utilisé dans le message de compatibilité quand la distro n'est pas reconnue.
 #shellcheck disable=SC2207
 function print_known_distros() {
 
@@ -18291,6 +19181,9 @@ function print_known_distros() {
 }
 
 #Check if you have installed the tools (essential, optional and update) that the script uses
+# [FR] Vérifie la présence de tous les outils requis (essentiels, optionnels, mise à jour).
+# [FR] Affiche un tableau de compatibilité, marque les options désactivées dans forbidden_options[].
+# [FR] Outils essentiels : aircrack-ng, iw, ip. Optionnels : hashcat, bully, reaver, beef, etc.
 #shellcheck disable=SC2059
 function check_compatibility() {
 
@@ -18483,6 +19376,8 @@ function check_compatibility() {
 }
 
 #Check for the minimum bash version requirement
+# [FR] Vérifie que la version de bash est ≥ 4.2 (requis pour les tableaux associatifs declare -gA).
+# [FR] bash 4.2 est disponible par défaut sur Kali Linux → pas de problème attendu.
 function check_bash_version() {
 
 	debug_print
@@ -18502,6 +19397,8 @@ function check_bash_version() {
 }
 
 #Check if you have installed the tools required to update the script
+# [FR] Vérifie que curl est installé pour permettre la mise à jour automatique du script.
+# [FR] curl est nécessaire pour télécharger la nouvelle version depuis GitHub.
 function check_update_tools() {
 
 	debug_print
@@ -18524,6 +19421,7 @@ function check_update_tools() {
 }
 
 #Update UI layout
+# [FR] Met à jour la mise en page de l'interface lors d'un redimensionnement du terminal.
 function update_ui_layout_on_keypress() {
 
 	debug_print
@@ -18532,6 +19430,8 @@ function update_ui_layout_on_keypress() {
 }
 
 #Check if window size is enough for intro
+# [FR] Vérifie que la fenêtre de terminal est assez grande pour afficher l'animation d'intro.
+# [FR] Taille minimale requise: 80 colonnes x 24 lignes pour un affichage correct.
 function check_window_size_for_intro() {
 
 	debug_print
@@ -18555,6 +19455,8 @@ function check_window_size_for_intro() {
 }
 
 #Print the script intro
+# [FR] Affiche l'écran d'introduction d'airgeddon (logo ASCII + version + auteur).
+# [FR] Si le terminal est assez grand, lance l'animation de la soucoupe volante.
 function print_intro() {
 
 	debug_print
@@ -18572,6 +19474,8 @@ function print_intro() {
 }
 
 #Generate the frames of the animated ascii art flying saucer
+# [FR] Génère les frames de l'animation ASCII de la soucoupe volante (easter egg d'intro).
+# [FR] Chaque frame est un état différent de l'animation pour créer l'effet de mouvement.
 function flying_saucer() {
 
 	debug_print
@@ -18614,6 +19518,7 @@ function flying_saucer() {
 }
 
 #Adjust visual offset for floating layout render alignment
+# [FR] Ajuste l'offset visuel de l'animation selon la taille du terminal pour un alignement correct.
 function animated_flying_saucer_window_correction() {
 
 	debug_print
@@ -18717,6 +19622,7 @@ function animated_flying_saucer_window_correction() {
 }
 
 #Print animated ascii art flying saucer
+# [FR] Affiche l'animation de la soucoupe volante ASCII en boucle dans l'intro.
 function print_animated_flying_saucer() {
 
 	debug_print
@@ -18735,6 +19641,8 @@ function print_animated_flying_saucer() {
 }
 
 #Initialize script settings
+# [FR] Initialise tous les paramètres du script au démarrage: chemins, couleurs, sons, bandes, tmux.
+# [FR] Point d'entrée de la séquence d'initialisation complète avant d'afficher le premier menu.
 function initialize_script_settings() {
 
 	debug_print
@@ -18797,6 +19705,8 @@ function initialize_script_settings() {
 }
 
 #Detect graphics system
+# [FR] Détecte le système graphique disponible (X11, Wayland, tmux, aucun).
+# [FR] Détermine si les fenêtres xterm peuvent être utilisées ou si tmux est nécessaire.
 function graphics_prerequisites() {
 
 	debug_print
@@ -18819,6 +19729,8 @@ function graphics_prerequisites() {
 }
 
 #Detect if there is a working graphics system
+# [FR] Teste si un environnement graphique fonctionnel est disponible pour lancer des fenêtres xterm.
+# [FR] Sur un serveur sans GUI ou en SSH sans X11 forwarding, airgeddon utilise tmux à la place.
 function check_graphics_system() {
 
 	debug_print
@@ -18845,6 +19757,8 @@ function check_graphics_system() {
 }
 
 #Detect screen resolution if possible
+# [FR] Récupère la résolution de l'écran (via xrandr ou xdpyinfo) pour calculer les tailles des fenêtres.
+# [FR] Utilisé pour positionner les fenêtres xterm des attaques de façon ergonomique.
 function detect_screen_resolution() {
 
 	debug_print
@@ -18864,6 +19778,7 @@ function detect_screen_resolution() {
 }
 
 #Set windows sizes and positions
+# [FR] Calcule et définit les tailles et positions des fenêtres xterm selon la résolution écran.
 function set_windows_sizes() {
 
 	debug_print
@@ -18905,6 +19820,7 @@ function set_windows_sizes() {
 }
 
 #Set sizes for x-axis
+# [FR] Calcule les largeurs des fenêtres xterm (axe horizontal) selon la résolution détectée.
 function set_xsizes() {
 
 	debug_print
@@ -18925,6 +19841,7 @@ function set_xsizes() {
 }
 
 #Set sizes for y axis
+# [FR] Calcule les hauteurs des fenêtres xterm (axe vertical) selon la résolution détectée.
 function set_ysizes() {
 
 	debug_print
@@ -18945,6 +19862,7 @@ function set_ysizes() {
 }
 
 #Set positions for y-axis
+# [FR] Calcule les positions verticales des fenêtres xterm pour éviter les chevauchements.
 function set_ypositions() {
 
 	debug_print
@@ -18960,6 +19878,7 @@ function set_ypositions() {
 }
 
 #Recalculate windows sizes and positions
+# [FR] Recalcule les tailles de fenêtres après un changement de résolution ou de mode d'affichage.
 function recalculate_windows_sizes() {
 
 	debug_print
@@ -18969,6 +19888,9 @@ function recalculate_windows_sizes() {
 }
 
 #Initialization of env vars
+# [FR] Initialise TOUTES les variables d'environnement globales d'airgeddon : interfaces, BSSID,
+# [FR] channel, modes, options de configuration, tableaux d'outils, chemins, variables d'état.
+# [FR] C'est la plus grande fonction d'initialisation du script (~280 variables initialisées).
 #shellcheck disable=SC2145
 function env_vars_initialization() {
 
@@ -19055,6 +19977,8 @@ function env_vars_initialization() {
 }
 
 #Validation of env vars. Missing vars, invalid values, etc. are checked
+# [FR] Valide les variables d'environnement utilisateur (AIRGEDDON_*) du fichier .airgeddonrc.
+# [FR] Détecte les valeurs invalides, les variables manquantes et corrige le fichier rc si nécessaire.
 function env_vars_values_validation() {
 
 	debug_print
@@ -19115,6 +20039,7 @@ function env_vars_values_validation() {
 }
 
 #Print possible issues on configuration vars
+# [FR] Affiche les problèmes détectés dans les variables de configuration (valeurs invalides, etc.).
 function print_configuration_vars_issues() {
 
 	debug_print
@@ -19161,6 +20086,8 @@ function print_configuration_vars_issues() {
 }
 
 #Create env vars file and fill it with default values
+# [FR] Crée le fichier ~/.airgeddonrc avec les valeurs par défaut de toutes les options configurables.
+# [FR] Ce fichier persiste la configuration entre les sessions (couleurs, sons, bandes, etc.).
 function create_rcfile() {
 
 	debug_print
@@ -19189,6 +20116,7 @@ function create_rcfile() {
 }
 
 #Detect if airgeddon is working inside a docker container
+# [FR] Détecte si airgeddon tourne dans un conteneur Docker (limitant certaines fonctionnalités réseau).
 function docker_detection() {
 
 	debug_print
@@ -19199,6 +20127,8 @@ function docker_detection() {
 }
 
 #Set sounds for evil twin attacks if set
+# [FR] Active les sons pour les attaques Evil Twin si AIRGEDDON_EVIL_TWIN_SOUNDS=true.
+# [FR] Sons: bip quand un client se connecte, quand le portail capture un mot de passe, etc.
 function initialize_sounds() {
 
 	debug_print
@@ -19212,6 +20142,7 @@ function initialize_sounds() {
 }
 
 #Set colorization output if set
+# [FR] Initialise les couleurs étendues si AIRGEDDON_EXTENDED_COLORS=true (256 couleurs vs 8).
 function initialize_extended_colorized_output() {
 
 	debug_print
@@ -19225,6 +20156,8 @@ function initialize_extended_colorized_output() {
 }
 
 #Remap colors vars
+# [FR] Réaffecte les variables de couleur selon le mode actif (basic vs extended, normal vs RTL).
+# [FR] En mode AIRGEDDON_BASIC_COLORS=false, utilise les codes ANSI 256 couleurs.
 function remap_colors() {
 
 	debug_print
@@ -19246,6 +20179,7 @@ function remap_colors() {
 }
 
 #Initialize colors vars
+# [FR] Définit toutes les variables de couleur ANSI utilisées dans l'interface (red, green, blue, etc.).
 function initialize_colors() {
 
 	debug_print
@@ -19264,6 +20198,7 @@ function initialize_colors() {
 }
 
 #Kill tmux session started by airgeddon
+# [FR] Arrête la session tmux créée par airgeddon (nettoyage en fin de session ou en cas d'erreur).
 function kill_tmux_session() {
 
 	debug_print
@@ -19277,6 +20212,8 @@ function kill_tmux_session() {
 }
 
 #Initialize tmux if apply
+# [FR] Initialise tmux si nécessaire (pas de GUI, ou AIRGEDDON_WINDOWS_HANDLING=tmux forcé).
+# [FR] tmux remplace les fenêtres xterm en mode non-graphique (SSH, console, etc.).
 function initialize_tmux() {
 
 	debug_print
@@ -19305,6 +20242,7 @@ function initialize_tmux() {
 }
 
 #Starting point of airgeddon script inside newly created tmux session
+# [FR] Point de démarrage d'airgeddon DANS la session tmux (re-lance le script en mode tmux).
 function start_airgeddon_from_tmux() {
 
 	debug_print
@@ -19320,6 +20258,7 @@ function start_airgeddon_from_tmux() {
 }
 
 #Create new tmux session exclusively for airgeddon
+# [FR] Crée une nouvelle session tmux dédiée à airgeddon avec le nom de session configuré.
 function create_tmux_session() {
 
 	debug_print
@@ -19368,6 +20307,8 @@ function start_tmux_processes() {
 }
 
 #Check if script is currently executed inside tmux session or not
+# [FR] Vérifie si airgeddon tourne déjà dans une session tmux (détecte TMUX env var).
+# [FR] Évite de créer une session tmux imbriquée (tmux dans tmux).
 function check_inside_tmux() {
 
 	debug_print
@@ -19383,6 +20324,7 @@ function check_inside_tmux() {
 }
 
 #Hand over script execution to tmux and call function to create a new session
+# [FR] Transfère l'exécution du script vers tmux en relançant airgeddon dans une nouvelle session tmux.
 function transfer_to_tmux() {
 
 	debug_print
@@ -19469,6 +20411,8 @@ function get_tmux_process_id() {
 }
 
 #Centralized function to launch window using xterm/tmux
+# [FR] Fonction centrale de lancement de fenêtres : utilise xterm ou tmux selon la configuration.
+# [FR] Toutes les fenêtres d'attaque (airodump, hostapd, aireplay...) passent par cette fonction.
 function manage_output() {
 
 	debug_print
@@ -19506,6 +20450,8 @@ function manage_output() {
 }
 
 #Plugins initialization, parsing and validations handling
+# [FR] Initialise et charge les plugins installés dans le répertoire plugins/ d'airgeddon.
+# [FR] Les plugins peuvent ajouter de nouvelles attaques, modifier des menus ou hooker des fonctions.
 function parse_plugins() {
 
 	plugins_enabled=()
@@ -19538,6 +20484,7 @@ function parse_plugins() {
 }
 
 #Validate if plugin meets the needed requirements
+# [FR] Vérifie que le plugin est compatible avec la version actuelle d'airgeddon et ses dépendances.
 function validate_plugin_requirements() {
 
 	if [ -n "${plugin_minimum_ag_affected_version}" ]; then
@@ -19656,6 +20603,8 @@ function apply_plugin_functions_rewriting() {
 }
 
 #Plugins function handler in charge of managing prehook, posthooks and override function calls
+# [FR] Gestionnaire de plugins : exécute les pre-hooks, la fonction principale, puis les post-hooks.
+# [FR] Permet aux plugins de modifier le comportement d'airgeddon sans toucher au code source original.
 function plugin_function_call_handler() {
 
 	local function_name=${1}
@@ -19711,6 +20660,8 @@ function plugin_function_call_handler() {
 }
 
 #Avoid the problem of using airmon-zc without ethtool installed
+# [FR] Vérifie que ethtool est installé si airmon-zc est utilisé.
+# [FR] airmon-zc nécessite ethtool pour identifier les interfaces → erreur sans lui.
 function airmonzc_security_check() {
 
 	debug_print
@@ -19728,6 +20679,7 @@ function airmonzc_security_check() {
 }
 
 #Check if the first float argument is greater than the second
+# [FR] Compare deux nombres flottants (bash ne supporte pas les flottants nativement → utilise awk).
 function compare_floats_greater_than() {
 
 	debug_print
@@ -19736,6 +20688,7 @@ function compare_floats_greater_than() {
 }
 
 #Check if the first float argument is greater than or equal to the second float argument
+# [FR] Compare deux flottants (≥) via awk pour les vérifications de version d'outils.
 function compare_floats_greater_or_equal() {
 
 	debug_print
@@ -19744,6 +20697,8 @@ function compare_floats_greater_or_equal() {
 }
 
 #Update and relaunch the script
+# [FR] Télécharge la dernière version d'airgeddon depuis GitHub et relance le script.
+# [FR] Sauvegarde les paramètres permanents (langue, etc.) avant la mise à jour.
 function download_last_version() {
 
 	debug_print
@@ -19795,6 +20750,8 @@ function download_last_version() {
 }
 
 #Validate if the selected internet interface has internet access
+# [FR] Vérifie que l'interface Internet sélectionnée pour l'AP Evil Twin a bien un accès réseau.
+# [FR] Nécessaire pour le mode "Evil Twin avec internet" (les clients ont accès à Internet via l'AP factice).
 function validate_et_internet_interface() {
 
 	debug_print
@@ -19824,6 +20781,7 @@ function validate_et_internet_interface() {
 }
 
 #Check for access to airgeddon repository
+# [FR] Vérifie l'accès au dépôt GitHub d'airgeddon pour les mises à jour et téléchargements.
 function check_repository_access() {
 
 	debug_print
@@ -19838,6 +20796,8 @@ function check_repository_access() {
 }
 
 #Check for active internet connection
+# [FR] Vérifie la connectivité Internet en testant plusieurs URLs (GitHub, Google, etc.).
+# [FR] Utilisé avant les téléchargements pour éviter les erreurs de timeout.
 function check_internet_access() {
 
 	debug_print
@@ -19864,6 +20824,7 @@ function check_internet_access() {
 }
 
 #Check for access to a URL using curl
+# [FR] Teste l'accès à une URL avec curl (timeout 15s). Supporte les proxies HTTP.
 function check_url_curl() {
 
 	debug_print
@@ -19881,6 +20842,7 @@ function check_url_curl() {
 }
 
 #Check for access to a URL using wget
+# [FR] Teste l'accès à une URL avec wget (alternative à curl si curl non disponible).
 function check_url_wget() {
 
 	debug_print
@@ -19898,6 +20860,7 @@ function check_url_wget() {
 }
 
 #Detect if there is an http proxy configured on the system
+# [FR] Détecte la configuration proxy HTTP via les variables d'environnement HTTP_PROXY/http_proxy.
 function http_proxy_detect() {
 
 	debug_print
@@ -19912,6 +20875,7 @@ function http_proxy_detect() {
 }
 
 #Check for default route on an interface
+# [FR] Vérifie qu'une interface a une route par défaut (gateway) pour l'accès Internet.
 function check_default_route() {
 
 	debug_print
@@ -19932,6 +20896,8 @@ function check_default_route() {
 }
 
 #Update the script if your version is outdated
+# [FR] Vérifie si une nouvelle version d'airgeddon est disponible et propose la mise à jour.
+# [FR] Compare la version locale avec la version GitHub via curl.
 function autoupdate_check() {
 
 	debug_print
@@ -19977,6 +20943,8 @@ function autoupdate_check() {
 }
 
 #Change script language automatically if OS language is supported by the script and different from the current language
+# [FR] Détecte la langue du système (LANG env var) et change automatiquement la langue d'airgeddon si supportée.
+# [FR] Ex: si LANG=fr_FR.UTF-8 → airgeddon passe automatiquement en FRENCH.
 function autodetect_language() {
 
 	debug_print
@@ -19993,6 +20961,8 @@ function autodetect_language() {
 }
 
 #Detect if the current language is a supported RTL (Right To Left) language
+# [FR] Détecte si la langue sélectionnée s'écrit de droite à gauche (RTL) comme l'arabe.
+# [FR] Active le mode RTL pour inverser l'affichage des menus et labels (Chipset: → :Chipset).
 function detect_rtl_language() {
 
 	debug_print
@@ -20010,6 +20980,8 @@ function detect_rtl_language() {
 }
 
 #Clean some known and controlled warnings for ShellCheck
+# [FR] Supprime des warnings ShellCheck connus et intentionnels (variables non utilisées, etc.).
+# [FR] Ces suppressions sont documentées et justifiées - ne pas supprimer d'autres warnings sans analyse.
 function remove_warnings() {
 
 	debug_print
@@ -20045,6 +21017,7 @@ function remove_warnings() {
 }
 
 #Print a simple separator
+# [FR] Affiche une ligne séparatrice simple (tirets) entre les sections d'un menu.
 function print_simple_separator() {
 
 	debug_print
@@ -20053,6 +21026,7 @@ function print_simple_separator() {
 }
 
 #Print a large separator
+# [FR] Affiche une ligne séparatrice large (= ou #) pour les titres de section importants.
 function print_large_separator() {
 
 	debug_print
@@ -20061,6 +21035,8 @@ function print_large_separator() {
 }
 
 #Add the PoT prefix on printed strings if PoT mark is found
+# [FR] Ajoute le préfixe PoT (Pending of Translation) si une chaîne n'est pas encore traduite.
+# [FR] Marque visuellement les chaînes à traduire pour les contributeurs.
 function check_pending_of_translation() {
 
 	debug_print
@@ -20083,6 +21059,7 @@ function check_pending_of_translation() {
 }
 
 #Print under construction message used on some menu entries
+# [FR] Affiche un message "en construction" pour les fonctionnalités réservées aux plugins non encore installés.
 function under_construction_message() {
 
 	debug_print
@@ -20093,6 +21070,8 @@ function under_construction_message() {
 }
 
 #Canalize the echo functions
+# [FR] Fonction centrale d'affichage : route les echo_*() vers le bon canal de sortie.
+# [FR] Gère aussi les buffered messages pour la fonction interrupt_checkpoint.
 function last_echo() {
 
 	debug_print
@@ -20105,6 +21084,7 @@ function last_echo() {
 }
 
 #Print green messages
+# [FR] Affiche un message en vert (utilisé pour les succès et les informations positives).
 function echo_green() {
 
 	debug_print
@@ -20113,6 +21093,7 @@ function echo_green() {
 }
 
 #Print blue messages
+# [FR] Affiche un message en bleu (utilisé pour les informations neutres et les instructions).
 function echo_blue() {
 
 	debug_print
@@ -20121,6 +21102,7 @@ function echo_blue() {
 }
 
 #Print yellow messages
+# [FR] Affiche un message en jaune (utilisé pour les avertissements et les actions importantes).
 function echo_yellow() {
 
 	debug_print
@@ -20129,6 +21111,7 @@ function echo_yellow() {
 }
 
 #Print red messages
+# [FR] Affiche un message en rouge (erreurs critiques, avertissements importants).
 function echo_red() {
 
 	debug_print
@@ -20137,6 +21120,7 @@ function echo_red() {
 }
 
 #Print red messages using a slimmer thickness
+# [FR] Affiche un message en rouge fin (variante légère de echo_red pour les messages moins critiques).
 function echo_red_slim() {
 
 	debug_print
@@ -20145,6 +21129,7 @@ function echo_red_slim() {
 }
 
 #Print black messages with background for titles
+# [FR] Affiche un titre avec fond coloré et texte en noir (format visuel pour les titres de menus).
 function echo_green_title() {
 
 	debug_print
@@ -20153,6 +21138,7 @@ function echo_green_title() {
 }
 
 #Print pink messages
+# [FR] Affiche un message en rose (informations WPS, données spéciales).
 function echo_pink() {
 
 	debug_print
@@ -20161,6 +21147,7 @@ function echo_pink() {
 }
 
 #Print cyan messages
+# [FR] Affiche un message en cyan (informations de progression, statut intermédiaire).
 function echo_cyan() {
 
 	debug_print
@@ -20169,6 +21156,7 @@ function echo_cyan() {
 }
 
 #Print brown messages
+# [FR] Affiche un message en marron/orange (informations secondaires, avertissements doux).
 function echo_brown() {
 
 	debug_print
@@ -20177,6 +21165,7 @@ function echo_brown() {
 }
 
 #Print white messages
+# [FR] Affiche un message en blanc (texte neutre, contenu informatif standard).
 function echo_white() {
 
 	debug_print
@@ -20185,6 +21174,9 @@ function echo_white() {
 }
 
 #Script starting point
+# [FR] Point d'entrée principal du script. Orchestre l'initialisation complète :
+# [FR] couleurs, variables d'environnement, tmux, détection distro, langue, dépendances,
+# [FR] compatibilité OS, puis lance le menu principal en boucle infinie.
 function main() {
 
 	initialize_script_settings
