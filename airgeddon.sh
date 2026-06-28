@@ -1602,6 +1602,17 @@ function check_vif_support() {
 	fi
 }
 
+#Check if a secondary WiFi interface is available besides the main selected one.
+#When a second physical adapter is present the DoS will use it, so VIF on the main card is not needed.
+function has_secondary_wifi_available() {
+
+	debug_print
+
+	local other_ifaces
+	readarray -t other_ifaces < <(iw dev | grep "Interface" | awk '{print $2}' | grep -v "^${interface}$")
+	[ "${#other_ifaces[@]}" -gt 0 ]
+}
+
 #Returns warning messages if long Wi-Fi names detected
 # [FR] Détecte si l'interface Wi-Fi a un nom long généré par udev (ex: wlxF4F26D).
 # [FR] Ces noms longs peuvent causer des problèmes avec certains outils (airmon-ng, hostapd).
@@ -2348,7 +2359,7 @@ function hookable_wpa3_attacks_menu() {
 			else
 				current_iface_on_messages="${interface}"
 				if check_interface_wifi "${interface}"; then
-					if [ "${adapter_vif_support}" -eq 0 ]; then
+					if [ "${adapter_vif_support}" -eq 0 ] && ! has_secondary_wifi_available; then
 						ask_yesno 696 "no"
 						if [ "${yesno}" = "y" ]; then
 							downgrade_attack_adapter_prerequisites_ok=1
@@ -8244,7 +8255,7 @@ function enterprise_attacks_menu() {
 			else
 				current_iface_on_messages="${interface}"
 				if check_interface_wifi "${interface}"; then
-					if [ "${adapter_vif_support}" -eq 0 ]; then
+					if [ "${adapter_vif_support}" -eq 0 ] && ! has_secondary_wifi_available; then
 						ask_yesno 696 "no"
 						if [ "${yesno}" = "y" ]; then
 							et_enterprise_attack_adapter_prerequisites_ok=1
@@ -8285,7 +8296,7 @@ function enterprise_attacks_menu() {
 			else
 				current_iface_on_messages="${interface}"
 				if check_interface_wifi "${interface}"; then
-					if [ "${adapter_vif_support}" -eq 0 ]; then
+					if [ "${adapter_vif_support}" -eq 0 ] && ! has_secondary_wifi_available; then
 						ask_yesno 696 "no"
 						if [ "${yesno}" = "y" ]; then
 							et_enterprise_attack_adapter_prerequisites_ok=1
@@ -8395,7 +8406,7 @@ function evil_twin_attacks_menu() {
 			else
 				current_iface_on_messages="${interface}"
 				if check_interface_wifi "${interface}"; then
-					if [ "${adapter_vif_support}" -eq 0 ]; then
+					if [ "${adapter_vif_support}" -eq 0 ] && ! has_secondary_wifi_available; then
 						ask_yesno 696 "no"
 						if [ "${yesno}" = "y" ]; then
 							et_attack_adapter_prerequisites_ok=1
@@ -8440,7 +8451,7 @@ function evil_twin_attacks_menu() {
 			else
 				current_iface_on_messages="${interface}"
 				if check_interface_wifi "${interface}"; then
-					if [ "${adapter_vif_support}" -eq 0 ]; then
+					if [ "${adapter_vif_support}" -eq 0 ] && ! has_secondary_wifi_available; then
 						ask_yesno 696 "no"
 						if [ "${yesno}" = "y" ]; then
 							et_attack_adapter_prerequisites_ok=1
@@ -8491,7 +8502,7 @@ function evil_twin_attacks_menu() {
 						language_strings "${language}" 174 "red"
 						language_strings "${language}" 115 "read"
 					else
-						if [ "${adapter_vif_support}" -eq 0 ]; then
+						if [ "${adapter_vif_support}" -eq 0 ] && ! has_secondary_wifi_available; then
 							ask_yesno 696 "no"
 							if [ "${yesno}" = "y" ]; then
 								et_attack_adapter_prerequisites_ok=1
@@ -8540,7 +8551,7 @@ function evil_twin_attacks_menu() {
 			else
 				current_iface_on_messages="${interface}"
 				if check_interface_wifi "${interface}"; then
-					if [ "${adapter_vif_support}" -eq 0 ]; then
+					if [ "${adapter_vif_support}" -eq 0 ] && ! has_secondary_wifi_available; then
 						ask_yesno 696 "no"
 						if [ "${yesno}" = "y" ]; then
 							et_attack_adapter_prerequisites_ok=1
@@ -8640,7 +8651,7 @@ function beef_pre_menu() {
 						return
 					fi
 
-					if [ "${adapter_vif_support}" -eq 0 ]; then
+					if [ "${adapter_vif_support}" -eq 0 ] && ! has_secondary_wifi_available; then
 						ask_yesno 696 "no"
 						if [ "${yesno}" = "y" ]; then
 							et_attack_adapter_prerequisites_ok=1
